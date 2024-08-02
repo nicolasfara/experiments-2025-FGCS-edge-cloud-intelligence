@@ -1,3 +1,18 @@
+## 1.0.0 (2024-08-02)
+
+### Documentation
+
+* update readme ([6af57b2](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/6af57b2af41c2e92346046af4b9f5ece05b243d7))
+
+### Build and continuous integration
+
+* change project name ([8591c7b](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/8591c7b6764c15e61e85ef12b6e17dcfe8451106))
+* fix docker username ([01ea305](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/01ea30566b2998810b9cc56feaa65434d4ed2812))
+
+### General maintenance
+
+* **docker:** set docker username ([95e307b](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/95e307b8b50811a72768a2d88fd28165479fee58))
+
 ## [1.2.1](https://github.com/DanySK/alchemist-experiments-bootstrap/compare/1.2.0...1.2.1) (2024-02-09)
 
 
