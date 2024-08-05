@@ -1,4 +1,3 @@
-import org.gradle.configurationcache.extensions.capitalized
 import java.awt.GraphicsEnvironment
 import java.io.ByteArrayOutputStream
 
@@ -87,12 +86,12 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
                 },
             )
             if (System.getenv("CI") == "true") {
-                args("--override", "terminate: { type: AfterTime, parameters: [2] } ")
+                args("--override", "terminate: { type: AfterTime, parameters: [5] } ")
             } else {
                 this.additionalConfiguration()
             }
         }
-        val capitalizedName = it.nameWithoutExtension.capitalized()
+        val capitalizedName = it.nameWithoutExtension.replaceFirstChar { c -> c.titlecase() }
         val graphic by basetask("run${capitalizedName}Graphic") {
             args(
                 "--override",
