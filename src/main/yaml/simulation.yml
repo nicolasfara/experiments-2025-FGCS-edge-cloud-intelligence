@@ -1,4 +1,4 @@
-incarnation: scafi
+incarnation: surrogatescafi
 
 variables:
   seed: &seed
