@@ -40,12 +40,19 @@ _programs:
         - type: RunSurrogateScafiProgram
           parameters: [ "it.unibo.alchemist.Main", *retentionTime, *programDag ]
     - program: sendSurrogate
+  - program: &gradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ "it.unibo.alchemist.Main", *retentionTime, *programDag ]
+      - program: send
 
 deployments:
   - type: Grid
     parameters: [-5, -5, 5, 5, *spacing, *spacing, *error, *error]
     programs:
-      - *surrogateGradient
+      - *gradient
     contents:
       - in:
           type: Rectangle

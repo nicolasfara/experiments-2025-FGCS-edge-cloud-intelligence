@@ -3,9 +3,7 @@ package it.unibo.alchemist
 import it.unibo.alchemist.model.scafi.ScafiIncarnationForAlchemist._
 
 abstract class MyAggregateProgram extends AggregateProgram with StandardSensors with ScafiAlchemistSupport with BuildingBlocks with FieldUtils {
-
-  def senseOr[T](name: String, otherwise: T): T = if (node.has(name)) sense[T](name) else otherwise
-
+  def senseOr[T](name: String, otherwise: T): T = node.getOrElse(name, otherwise)
   def writeEnv[T](name: String, value: T): Unit = node.put(name, value)
 
   def inputFromComponent[C](component: String, default: => C): C = {

@@ -172,9 +172,19 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
         throw new IllegalStateException(s"There are too many programs requiring a ${sendProgramClazz.getSimpleName} action: $programsToComplete")
       }
       if (isSurrogate) {
-        return new SendSurrogateScafiMessage[T, P](environment, device, actionable.asInstanceOf[Reaction[T]], programsToComplete.head)
+        return new SendSurrogateScafiMessage[T, P](
+          environment,
+          device,
+          actionable.asInstanceOf[Reaction[T]],
+          programsToComplete.head.asInstanceOf[RunSurrogateScafiProgram[T, P]]
+        )
       } else {
-        return new SendApplicationScafiMessage[T, P](environment, device, actionable.asInstanceOf[Reaction[T]], programsToComplete.head)
+        return new SendApplicationScafiMessage[T, P](
+          environment,
+          device,
+          actionable.asInstanceOf[Reaction[T]],
+          programsToComplete.head.asInstanceOf[RunApplicationScafiProgram[T, P]]
+        )
       }
     }
   )

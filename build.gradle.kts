@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.qa)
     alias(libs.plugins.multiJvmTesting)
+    alias(libs.plugins.spotless)
     alias(libs.plugins.taskTree)
 }
 
@@ -31,8 +32,16 @@ multiJvm {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(libs.bundles.alchemist)
+    implementation(libs.resourceloader)
+    implementation(libs.bundles.scalacache)
     if (!GraphicsEnvironment.isHeadless()) {
         implementation("it.unibo.alchemist:alchemist-swingui:${libs.versions.alchemist.get()}")
+    }
+}
+
+spotless {
+    scala {
+        scalafmt().configFile(".scalafmt.conf")
     }
 }
 
