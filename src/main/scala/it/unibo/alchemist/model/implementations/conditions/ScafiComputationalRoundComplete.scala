@@ -6,9 +6,9 @@ import it.unibo.alchemist.model.implementations.actions.RunScafiProgram
 import it.unibo.alchemist.model.implementations.nodes.ScafiDevice
 
 class ScafiComputationalRoundComplete[T, P <: Position[P], Program <: RunScafiProgram[T, P]](
-  val device: ScafiDevice[T],
-  val program: RunScafiProgram[T, P],
-  val clazz: Class[Program],
+    val device: ScafiDevice[T],
+    val program: RunScafiProgram[T, P],
+    val clazz: Class[Program]
 ) extends AbstractCondition(device.getNode) {
   declareDependencyOn(program.asMolecule)
 
@@ -17,7 +17,8 @@ class ScafiComputationalRoundComplete[T, P <: Position[P], Program <: RunScafiPr
       node,
       getClass.getSimpleName + " cannot get cloned on a node of type " + node.getClass.getSimpleName,
       device => {
-        val possibleRefs: Iterable[Program] = SurrogateScafiIncarnation.allScafiProgramsForType[T, P](device.getNode, clazz)
+        val possibleRefs: Iterable[Program] = SurrogateScafiIncarnation
+          .allScafiProgramsForType[T, P](device.getNode, clazz)
           .map(_.asInstanceOf[Program])
         if (possibleRefs.size == 1) {
           new ScafiComputationalRoundComplete(device, possibleRefs.head, clazz)

@@ -11,13 +11,13 @@ sealed abstract class RunScafiProgram[T, P <: Position[P]](node: Node[T]) extend
 }
 
 final class RunApplicationScafiProgram[T, P <: Position[P]](
-  environment: Environment[T, P],
-  node: Node[T],
-  reaction: Reaction[T],
-  randomGenerator: RandomGenerator,
-  programName: String,
-  retentionTime: Double,
-  programDagMapping: Map[String, List[String]] = Map.empty
+    environment: Environment[T, P],
+    node: Node[T],
+    reaction: Reaction[T],
+    randomGenerator: RandomGenerator,
+    programName: String,
+    retentionTime: Double,
+    programDagMapping: Map[String, List[String]] = Map.empty
 ) extends RunScafiProgram[T, P](node) {
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
@@ -27,13 +27,13 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
 }
 
 final class RunSurrogateScafiProgram[T, P <: Position[P]](
-  environment: Environment[T, P],
-  node: Node[T],
-  reaction: Reaction[T],
-  randomGenerator: RandomGenerator,
-  programName: String,
-  retentionTime: Double,
-  programDagMapping: Map[String, List[String]] = Map.empty
+    environment: Environment[T, P],
+    node: Node[T],
+    reaction: Reaction[T],
+    randomGenerator: RandomGenerator,
+    programName: String,
+    retentionTime: Double,
+    programDagMapping: Map[String, List[String]] = Map.empty
 ) extends RunScafiProgram[T, P](node) {
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 

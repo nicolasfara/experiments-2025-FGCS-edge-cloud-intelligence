@@ -1,5 +1,12 @@
 package it.unibo.alchemist.model
-import it.unibo.alchemist.model.implementations.actions.{RunApplicationScafiProgram, RunScafiProgram, RunSurrogateScafiProgram}
+import it.unibo.alchemist.model.implementations.actions.{
+  RunApplicationScafiProgram,
+  RunScafiProgram,
+  RunSurrogateScafiProgram,
+  SendApplicationScafiMessage,
+  SendScafiMessage,
+  SendSurrogateScafiMessage
+}
 import it.unibo.alchemist.model.implementations.conditions.ScafiComputationalRoundComplete
 import it.unibo.alchemist.model.implementations.nodes.ScafiDevice
 import it.unibo.alchemist.model.molecules.SimpleMolecule
@@ -13,7 +20,6 @@ import org.apache.commons.math3.random.RandomGenerator
 import java.util.Objects
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.{BufferHasAsJava, CollectionHasAsScala}
-import scala.reflect.ClassTag
 
 class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   private[this] def notNull[V](value: V, name: String = "Object"): V =
@@ -24,10 +30,10 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
     case x: Boolean => if (x) 1 else 0
     case x: Long    => x.toDouble
     case x: Double  => x
-    case x: Int => x
-    case x: Float => x
-    case x:  Byte => x
-    case x: Short  => x
+    case x: Int     => x
+    case x: Float   => x
+    case x: Byte    => x
+    case x: Short   => x
     case _          => Double.NaN
   }
 
@@ -50,9 +56,9 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   override def createConcentration(): T = null.asInstanceOf[T]
 
   override def createNode(
-     randomGenerator: RandomGenerator,
-     environment: Environment[T, P],
-     parameter: Any
+      randomGenerator: RandomGenerator,
+      environment: Environment[T, P],
+      parameter: Any
   ): Node[T] = {
     val scafiNode = new GenericNode[T](this, environment)
     scafiNode.addProperty(new ScafiDevice(scafiNode))
@@ -60,10 +66,10 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   }
 
   override def createTimeDistribution(
-    randomGenerator: RandomGenerator,
-    environment: Environment[T, P],
-    node: Node[T],
-    parameters: Any
+      randomGenerator: RandomGenerator,
+      environment: Environment[T, P],
+      node: Node[T],
+      parameters: Any
   ): TimeDistribution[T] = {
     Option(parameters) match {
       case None => new ExponentialTime[T](Double.PositiveInfinity, randomGenerator)
@@ -77,11 +83,11 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   }
 
   override def createReaction(
-     randomGenerator: RandomGenerator,
-     environment: Environment[T, P],
-     node: Node[T],
-     timeDistribution: TimeDistribution[T],
-     parameters: Any
+      randomGenerator: RandomGenerator,
+      environment: Environment[T, P],
+      node: Node[T],
+      timeDistribution: TimeDistribution[T],
+      parameters: Any
   ): Reaction[T] = {
     val parameterString = Option(parameters).map(_.toString)
     val isSend = parameterString.exists(parameter => parameter.equalsIgnoreCase("send") || parameter.equalsIgnoreCase("sendSurrogate"))
@@ -109,21 +115,22 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   }
 
   override def createCondition(
-    randomGenerator: RandomGenerator,
-    environment: Environment[T, P],
-    node: Node[T],
-    time: TimeDistribution[T],
-    actionable: Actionable[T],
-    additionalParameters: Any
+      randomGenerator: RandomGenerator,
+      environment: Environment[T, P],
+      node: Node[T],
+      time: TimeDistribution[T],
+      actionable: Actionable[T],
+      additionalParameters: Any
   ): Condition[T] = SurrogateScafiIncarnation.runInScafiDeviceContext[T, Condition[T]](
     node,
     message = s"The node must have a ${classOf[ScafiDevice[_]].getSimpleName} property",
     device => {
       val isSurrogate = node.getReactions.asScala.flatMap(_.getActions.asScala).exists(_.isInstanceOf[RunSurrogateScafiProgram[_, _]])
       val programClazz = if (isSurrogate) classOf[RunSurrogateScafiProgram[T, P]] else classOf[RunApplicationScafiProgram[T, P]]
-      val alreadyDone = SurrogateScafiIncarnation.allConditionsFor(node, programClazz)
+      val alreadyDone = SurrogateScafiIncarnation
+        .allConditionsFor(node, programClazz)
         .map(_.asInstanceOf[ScafiComputationalRoundComplete[T, P, _]])
-        .map(_.program.asInstanceOf[RunScafiProgram[T, P]])
+        .map(_.program)
       val allScafiPrograms = SurrogateScafiIncarnation.allScafiProgramsForType[T, P](node, programClazz)
       if (allScafiPrograms.isEmpty) {
         throw new IllegalStateException(s"There is no program requiring a ${programClazz.getSimpleName} condition")
@@ -137,13 +144,40 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   )
 
   override def createAction(
-    randomGenerator: RandomGenerator,
-    environment: Environment[T, P],
-    node: Node[T],
-    time: TimeDistribution[T],
-    actionable: Actionable[T],
-    additionalParameters: Any
-  ): Action[T] = ???
+      randomGenerator: RandomGenerator,
+      environment: Environment[T, P],
+      node: Node[T],
+      time: TimeDistribution[T],
+      actionable: Actionable[T],
+      param: Any
+  ): Action[T] = SurrogateScafiIncarnation.runInScafiDeviceContext[T, Action[T]](
+    node,
+    message = s"The node must have a ${classOf[ScafiDevice[_]].getSimpleName} property",
+    body = device => {
+      val isSurrogate = param == "sendSurrogate"
+      val sendProgramClazz = if (isSurrogate) classOf[SendSurrogateScafiMessage[T, P]] else classOf[SendApplicationScafiMessage[T, P]]
+      val programClazz = if (isSurrogate) classOf[RunSurrogateScafiProgram[T, P]] else classOf[RunApplicationScafiProgram[T, P]]
+      val alreadyDone = SurrogateScafiIncarnation
+        .allActionsForType(node, sendProgramClazz)
+        .map(_.asInstanceOf[SendScafiMessage[T, P]])
+        .map(_.program)
+      val allScafiPrograms = SurrogateScafiIncarnation
+        .allScafiProgramsForType[T, P](node, programClazz)
+        .map(_.asInstanceOf[RunScafiProgram[T, P]])
+      val programsToComplete = allScafiPrograms.filterNot(t => alreadyDone.exists(e => e == t))
+      if (programsToComplete.isEmpty) {
+        throw new IllegalStateException(s"There is no program requiring a ${sendProgramClazz.getSimpleName} action")
+      }
+      if (programsToComplete.size > 1) {
+        throw new IllegalStateException(s"There are too many programs requiring a ${sendProgramClazz.getSimpleName} action: $programsToComplete")
+      }
+      if (isSurrogate) {
+        return new SendSurrogateScafiMessage[T, P](environment, device, actionable.asInstanceOf[Reaction[T]], programsToComplete.head)
+      } else {
+        return new SendApplicationScafiMessage[T, P](environment, device, actionable.asInstanceOf[Reaction[T]], programsToComplete.head)
+      }
+    }
+  )
 }
 
 object SurrogateScafiIncarnation {
@@ -159,14 +193,11 @@ object SurrogateScafiIncarnation {
 
   def isScafiNode[T](node: Node[T]): Boolean = node.asPropertyOrNull[ScafiDevice[T]](classOf[ScafiDevice[T]]) != null
 
-  def allActions[T, P <: Position[P], C](node: Node[T], klass: Class[C]): Iterable[C] =
+  def allActionsForType[T, P <: Position[P]](node: Node[T], clazz: Class[_ <: Action[T]]): Iterable[Action[T]] =
     for {
       reaction: Reaction[T] <- node.getReactions.asScala
-      action: Action[T] <- reaction.getActions.asScala if klass.isInstance(action)
-    } yield action.asInstanceOf[C]
-
-  def allScafiProgramsForType[T, P <: Position[P], ProgType <: RunScafiProgram[T, P] : ClassTag](node: Node[T]) =
-    allActions[T, P, ProgType](node, implicitly[ClassTag[ProgType]].runtimeClass.asInstanceOf[Class[ProgType]])
+      action: Action[T] <- reaction.getActions.asScala if clazz.isInstance(action)
+    } yield action
 
   def allScafiProgramsForType[T, P <: Position[P]](node: Node[T], clazz: Class[_ <: RunScafiProgram[T, P]]) =
     for {
@@ -174,13 +205,6 @@ object SurrogateScafiIncarnation {
       action: Action[T] <- reaction.getActions.asScala if clazz.isInstance(action)
     } yield action
 
-//
-//  def allScafiProgramsFor[T, P <: Position[P]](node: Node[T]) =
-//    allActions[T, P, RunScafiProgram[T, P]](node, classOf[RunScafiProgram[T, P]])
-//
-//  def allSurrogateScafiProgramsFor[T, P <: Position[P]](node: Node[T]) =
-//    allActions[T, P, RunSurrogateScafiProgram[T, P]](node, classOf[RunSurrogateScafiProgram[T, P]])
-//
   def allConditionsFor[T](node: Node[T], conditionClass: Class[_]): Iterable[Condition[T]] =
     for {
       reaction <- node.getReactions.asScala
