@@ -1,6 +1,6 @@
 package it.unibo.alchemist.model.implementations.actions
 
-import it.unibo.alchemist.model.{Action, Context, Environment, Node, Position, Reaction, SurrogateScafiIncarnation, Target}
+import it.unibo.alchemist.model.{Action, Context, Environment, Node, Position, Reaction, SurrogateScafiIncarnation}
 import it.unibo.alchemist.model.actions.AbstractAction
 import it.unibo.alchemist.model.implementations.nodes.ScafiDevice
 import it.unibo.alchemist.model.molecules.SimpleMolecule
@@ -82,16 +82,6 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
       if implicitly[ClassTag[PG]].runtimeClass.isInstance(action)
     } yield action.asInstanceOf[PG]).toList
   }
-
-//  private def getNeighborsWithTarget(target: Target): List[Node[T]] = {
-//    environment
-//      .getNeighborhood(getNode)
-//      .getNeighbors
-//      .iterator()
-//      .asScala
-//      .filter(_.getConcentration(targetMolecule) == target.asInstanceOf[T])
-//      .toList
-//  }
 }
 
 final class SendSurrogateScafiMessage[T, P <: Position[P]](

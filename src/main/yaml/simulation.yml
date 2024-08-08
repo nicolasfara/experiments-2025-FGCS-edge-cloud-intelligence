@@ -8,14 +8,14 @@ variables:
     default: 0
   spacing: &spacing
     type: ArbitraryVariable
-    parameters: [0.25, [0.25, 0.5]]
+    parameters: [1, [0.25, 0.5]]
   error: &error
     type: ArbitraryVariable
     parameters: [0.1, [0.1, 0.2]]
   #------------------------------------------------------------------
   programDag: &programDag
     language: scala
-    formula: Map("it.unibo.alchemist.Gradient" -> List[String]())
+    formula: Map("it.unibo.alchemist.Gradient" -> Set[String]())
 
 seeds:
   scenario: *seed
@@ -27,7 +27,7 @@ launcher:
 
 network-model:
   type: ConnectWithinDistance
-  parameters: [0.5]
+  parameters: [1.5]
 
 _constants:
   retentionTime: &retentionTime 25.0
@@ -53,13 +53,23 @@ deployments:
     parameters: [-5, -5, 5, 5, *spacing, *spacing, *error, *error]
     programs:
       - *gradient
+    properties:
+      - type: AllocatorProperty
+        parameters: [ *programDag ]
     contents:
       - in:
           type: Rectangle
           parameters: [-6, -6, 2, 2]
         molecule: source
         concentration: true
+  - type: Point
+    parameters: [0, 5]
+    programs:
+      - *surrogateGradient
+    contents:
+      molecule: infrastructuralDevice
+      concentration: true
 
 terminate:
   type: AfterTime
-  parameters: 150
+  parameters: 1500

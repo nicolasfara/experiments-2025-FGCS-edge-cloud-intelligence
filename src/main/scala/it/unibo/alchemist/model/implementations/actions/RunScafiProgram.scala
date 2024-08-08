@@ -5,18 +5,15 @@ import it.unibo.alchemist.model.actions.AbstractLocalAction
 import it.unibo.alchemist.model.implementations.actions.RunScafiProgram.NeighborData
 import it.unibo.alchemist.model.implementations.nodes.SimpleNodeManager
 import it.unibo.alchemist.model.molecules.SimpleMolecule
-import it.unibo.alchemist.model.scafi.ScafiIncarnationForAlchemist
 import it.unibo.alchemist.model.{Time => AlchemistTime, _}
 import it.unibo.alchemist.model.scafi.ScafiIncarnationForAlchemist.{CONTEXT, EXPORT, ID, Path, _}
 import it.unibo.alchemist.scala.PimpMyAlchemist._
-import it.unibo.scafi.space.Point3D
+import it.unibo.alchemist.utils.AlchemistScafiUtils.{alchemistTimeToNanos, buildContext}
 import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.util.FastMath
 import org.kaikikm.threadresloader.ResourceLoader
 
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 import scala.util.{Failure, Try}
 
@@ -27,6 +24,7 @@ sealed abstract class RunScafiProgram[T, P <: Position[P]](node: Node[T]) extend
   def programDag: Map[String, List[String]]
   def prepareForComputationalCycle(): Unit
 }
+
 object RunScafiProgram {
   case class NeighborData[P <: Position[P]](exportData: EXPORT, position: P, executionTime: AlchemistTime)
 
@@ -37,7 +35,7 @@ object RunScafiProgram {
 
 final class RunApplicationScafiProgram[T, P <: Position[P]](
     environment: Environment[T, P],
-    node: Node[T],
+    val node: Node[T],
     reaction: Reaction[T],
     randomGenerator: RandomGenerator,
     programName: String,
@@ -61,35 +59,23 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     .getDeclaredConstructor()
     .newInstance()
     .asInstanceOf[CONTEXT => EXPORT]
-  override val programDag: Map[String, List[String]] = programDagMapping
   override val programNameMolecule = new SimpleMolecule(programName)
   lazy val nodeManager = new SimpleNodeManager(node)
-  private var neighborhoodManager: Map[ID, NeighborData[P]] = Map()
-  private val commonNames = new ScafiIncarnationForAlchemist.StandardSensorNames {}
-  private val targetMolecule = new SimpleMolecule("Target")
+//  private val targetMolecule = new SimpleMolecule("Target")
   private var completed = false
-  private lazy val allocatorProperty: Option[AllocatorProperty[T, P]] = node.getProperties.asScala
+
+  // --------------------- Modularization-related properties
+  override val programDag: Map[String, List[String]] = programDagMapping
+  private val applicationNeighborsCache = collection.mutable.Set[ID]()
+  private var neighborhoodManager: Map[ID, NeighborData[P]] = Map()
+  private val inputFromComponents = collection.mutable.Map[ID, mutable.Buffer[(Path, T)]]()
+  private lazy val allocator: AllocatorProperty[T, P] = node.getProperties.asScala
     .find(_.isInstanceOf[AllocatorProperty[T, P]])
     .map(_.asInstanceOf[AllocatorProperty[T, P]])
-
-  private val inputFromComponents = collection.mutable.Map[ID, mutable.Buffer[(Path, T)]]()
+    .getOrElse(throw new IllegalStateException(s"`AllocatorProperty` not found for node ${node.getId}"))
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]) =
     new RunApplicationScafiProgram(environment, node, reaction, randomGenerator, programName, retentionTime)
-
-  implicit def euclideanToPoint(point: P): Point3D = point.getDimensions match {
-    case 1 => Point3D(point.getCoordinate(0), 0, 0)
-    case 2 => Point3D(point.getCoordinate(0), point.getCoordinate(1), 0)
-    case 3 => Point3D(point.getCoordinate(0), point.getCoordinate(1), point.getCoordinate(2))
-  }
-
-  private def isOffloadedToSurrogate: Boolean = {
-    val result = for {
-      allocator <- allocatorProperty
-      targetHostKind <- allocator.getPhysicalComponentsAllocations.get(asMolecule.getName)
-    } yield targetHostKind != node
-    result.getOrElse(false)
-  }
 
   override def execute(): Unit = {
     import scala.jdk.CollectionConverters._
@@ -114,33 +100,43 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     val localSensors = node.getContents.asScala.map { case (k, v) => k.getName -> v }
     val neighborhoodSensors = scala.collection.mutable.Map[CNAME, Map[ID, Any]]()
     val exports: Iterable[(ID, EXPORT)] = neighborhoodManager.view.mapValues(_.exportData)
-    val context = buildContext(exports, localSensors.toMap, neighborhoodSensors, alchemistCurrentTime, deltaTime, currentTime, position)
+    val context = buildContext(
+      environment,
+      exports,
+      localSensors.toMap,
+      neighborhoodSensors,
+      alchemistCurrentTime,
+      deltaTime,
+      currentTime,
+      position,
+      node,
+      neighborhoodManager,
+      nodeManager,
+      randomGenerator
+    )
 
     mergeInputFromComponentsWithExport()
 
     // ----- Check if the program is offloaded to a surrogate or not
     if (isOffloadedToSurrogate) {
-      // Check if the program is offloaded to a surrogate
-      for {
-        allocator <- allocatorProperty
-        targetHostKind <- allocator.getComponentsAllocation.get(asMolecule.getName)
-        if targetHostKind != LocalNode
-        surrogateNode <- allocator.getPhysicalComponentsAllocations.get(asMolecule.getName) // Where is physical executed this program? (Node ID)
-        surrogateProgram <- SurrogateScafiIncarnation
-          .allScafiProgramsForType(surrogateNode, classOf[RunSurrogateScafiProgram[T, P]])
-          .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
-          .find(_.asMolecule == asMolecule)
-      } {
-        //        println(s"Node ${node.getId} has forward to $targetHostKind with id ${surrogateNode.getId}")
-        surrogateProgram.setContextFor(node.getId, context)
-        surrogateProgram.setCurrentNeighborhoodOf(node.getId, currentApplicativeNeighborhood)
-      }
+      val surrogateDeviceId = allocator
+        .getDeviceIdForComponent(asMolecule.getName)
+        .getOrElse(throw new IllegalStateException("The program is offloaded to a surrogate, but the target device is not found"))
+      val surrogateNode = environment.getNodeByID(surrogateDeviceId)
+      val surrogateProgram = SurrogateScafiIncarnation
+        .allScafiProgramsForType(surrogateNode, classOf[RunSurrogateScafiProgram[T, P]])
+        .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
+        .find(_.asMolecule == asMolecule)
+        .getOrElse(throw new IllegalStateException(s"Unable to find `RunSurrogateScafiProgram` for the node $surrogateDeviceId"))
+      surrogateProgram.setContextFor(node.getId, context)
+      surrogateProgram.setCurrentNeighborhoodOf(node.getId, currentApplicativeNeighborhood)
     } else {
       // Execute normal program since is executed locally
       val computed = program(context)
       val toSend = NeighborData(computed, position, alchemistCurrentTime)
       neighborhoodManager = neighborhoodManager + (node.getId -> toSend)
     }
+    // Write the output of the program to the node
     for {
       programResult <- neighborhoodManager.get(node.getId)
       result <- programResult.exportData.get[T](factory.emptyPath())
@@ -148,86 +144,24 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     completed = true
   }
 
+  /** Returns the application network neighborhood of the current node.
+    *
+    * It caches the result to avoid recomputing it multiple times.
+    */
   private def currentApplicativeNeighborhood: Set[ID] = {
-    environment
-      .getNeighborhood(node)
-      .getNeighbors
-      .iterator()
-      .asScala
-      .filter(_.getConcentration(targetMolecule) == LocalNode.asInstanceOf[T])
-      .map(_.getId)
-      .toSet
-  }
-
-  private def alchemistTimeToNanos(time: AlchemistTime): Long = (time.toDouble * 1_000_000_000).toLong
-
-  private def buildContext(
-      exports: Iterable[(ID, EXPORT)],
-      localSensors: Map[String, T],
-      neighborhoodSensors: scala.collection.mutable.Map[CNAME, Map[ID, Any]],
-      alchemistCurrentTime: AlchemistTime,
-      deltaTime: Long,
-      currentTime: Long,
-      position: P
-  ): CONTEXT = new ContextImpl(node.getId, exports, localSensors, Map.empty) {
-    override def nbrSense[TT](nsns: CNAME)(nbr: ID): Option[TT] =
-      neighborhoodSensors
-        .getOrElseUpdate(
-          nsns,
-          nsns match {
-            case commonNames.NBR_LAG =>
-              neighborhoodManager.mapValuesStrict[FiniteDuration](nbr =>
-                FiniteDuration(alchemistTimeToNanos(alchemistCurrentTime - nbr.executionTime), TimeUnit.NANOSECONDS)
-              )
-            /*
-             * nbrDelay is estimated: it should be nbr(deltaTime), here we suppose the round frequency
-             * is negligibly different between devices.
-             */
-            case commonNames.NBR_DELAY =>
-              neighborhoodManager.mapValuesStrict[FiniteDuration](nbr =>
-                FiniteDuration(
-                  alchemistTimeToNanos(nbr.executionTime) + deltaTime - currentTime,
-                  TimeUnit.NANOSECONDS
-                )
-              )
-            case commonNames.NBR_RANGE => neighborhoodManager.mapValuesStrict[Double](_.position.distanceTo(position))
-            case commonNames.NBR_VECTOR =>
-              neighborhoodManager.mapValuesStrict[Point3D](_.position.minus(position.getCoordinates))
-            case NBR_ALCHEMIST_LAG =>
-              neighborhoodManager.mapValuesStrict[Double](alchemistCurrentTime - _.executionTime)
-            case NBR_ALCHEMIST_DELAY =>
-              neighborhoodManager.mapValuesStrict(nbr => alchemistTimeToNanos(nbr.executionTime) + deltaTime - currentTime)
-          }
-        )
-        .get(nbr)
-        .map(_.asInstanceOf[TT])
-
-    override def sense[TT](lsns: String): Option[TT] = (lsns match {
-      case LSNS_ALCHEMIST_COORDINATES  => Some(position.getCoordinates)
-      case commonNames.LSNS_DELTA_TIME => Some(FiniteDuration(deltaTime, TimeUnit.NANOSECONDS))
-      case commonNames.LSNS_POSITION =>
-        val k = position.getDimensions
-        Some(
-          Point3D(
-            position.getCoordinate(0),
-            if (k >= 2) position.getCoordinate(1) else 0,
-            if (k >= 3) position.getCoordinate(2) else 0
-          )
-        )
-      case commonNames.LSNS_TIMESTAMP  => Some(currentTime)
-      case commonNames.LSNS_TIME       => Some(java.time.Instant.ofEpochMilli((alchemistCurrentTime * 1000).toLong))
-      case LSNS_ALCHEMIST_NODE_MANAGER => Some(nodeManager)
-      case LSNS_ALCHEMIST_DELTA_TIME =>
-        Some(
-          alchemistCurrentTime.minus(
-            neighborhoodManager.get(node.getId).map(_.executionTime).getOrElse(AlchemistTime.INFINITY)
-          )
-        )
-      case LSNS_ALCHEMIST_ENVIRONMENT => Some(environment)
-      case LSNS_ALCHEMIST_RANDOM      => Some(randomGenerator)
-      case LSNS_ALCHEMIST_TIMESTAMP   => Some(alchemistCurrentTime)
-      case _                          => localSensors.get(lsns)
-    }).map(_.asInstanceOf[TT])
+    val neighborsNodes = environment.getNeighborhood(node).getNeighbors.iterator().asScala.map(_.getId).toSet
+    val (alreadyCached, unknownNeighbors) = neighborsNodes.partition(applicationNeighborsCache.contains)
+    val newApplicationNeighbors = unknownNeighbors
+      .map(id => {
+        SurrogateScafiIncarnation
+          .allScafiProgramsForType(environment.getNodeByID(id), classOf[RunApplicationScafiProgram[T, P]])
+          .map(_.asInstanceOf[RunApplicationScafiProgram[T, P]])
+          .find(_.asMolecule == asMolecule)
+      })
+      .collect { case Some(program) => program }
+      .map(_.node.getId)
+    applicationNeighborsCache.addAll(newApplicationNeighbors)
+    alreadyCached ++ newApplicationNeighbors
   }
 
   def sendExport(id: ID, exportData: NeighborData[P]): Unit = {
@@ -256,6 +190,8 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     val result = neighborhoodManager(node.getId).exportData.get[T](factory.emptyPath())
     path -> result
   }
+
+  private def isOffloadedToSurrogate: Boolean = allocator.isOffloaded(asMolecule.getName, node)
 
   private def mergeInputFromComponentsWithExport(): Unit = {
     for {
@@ -298,14 +234,15 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
     .getDeclaredConstructor()
     .newInstance()
     .asInstanceOf[CONTEXT => EXPORT]
-  override val programDag = programDagMapping
   override val programNameMolecule = new SimpleMolecule(programName)
-  private val surrogateForNodes = collection.mutable.Set[ID]()
+
+  // --------------------- Modularization-related properties
+  override val programDag = programDagMapping
   private val contextManager = collection.mutable.Map[ID, CONTEXT]()
-  // Map of node ID to a map of neighbor ID to NeighborData
+  private val surrogateForNodes = collection.mutable.Set[ID]()
   private val neighborhoodManager = collection.mutable.Map[ID, collection.mutable.Map[ID, NeighborData[P]]]()
   private val currentNeighborhoodOfNodes = collection.mutable.Map[ID, Set[ID]]()
-  private val targetMolecule = new SimpleMolecule("Target")
+  private val applicationNeighborsCache = collection.mutable.Set[ID]()
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] =
     new RunSurrogateScafiProgram(environment, node, reaction, randomGenerator, programName, retentionTime)
@@ -321,9 +258,8 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
       data.filterInPlace((_, p) => p.executionTime >= alchemistCurrentTime - retentionTime)
     }
     // Clean the surrogateForNodes according to the retention time
-    val applicativeDevice = activeApplicationNeighborDevices.map(_.getId)
-    surrogateForNodes.filterInPlace(nodeId => applicativeDevice.contains(nodeId))
-    currentNeighborhoodOfNodes.filterInPlace((nodeId, _) => applicativeDevice.contains(nodeId))
+    surrogateForNodes.filterInPlace(activeApplicationNeighborDevices.contains)
+    currentNeighborhoodOfNodes.filterInPlace((nodeId, _) => activeApplicationNeighborDevices.contains(nodeId))
 
     // Run the program for each node offloading the computation to this surrogate
     surrogateForNodes.foreach(deviceId => {
@@ -346,14 +282,20 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
     completed = true
   }
 
-  private def activeApplicationNeighborDevices: List[Node[T]] = {
-    environment
-      .getNeighborhood(node)
-      .getNeighbors
-      .iterator()
-      .asScala
-      .filter(_.getConcentration(targetMolecule) == LocalNode.asInstanceOf[T])
-      .toList
+  private def activeApplicationNeighborDevices: Set[ID] = {
+    val neighborsNodes = environment.getNeighborhood(node).getNeighbors.iterator().asScala.map(_.getId).toSet
+    val (alreadyCached, unknownNeighbors) = neighborsNodes.partition(applicationNeighborsCache.contains)
+    val newApplicationNeighbors = unknownNeighbors
+      .map(id => {
+        SurrogateScafiIncarnation
+          .allScafiProgramsForType(environment.getNodeByID(id), classOf[RunApplicationScafiProgram[T, P]])
+          .map(_.asInstanceOf[RunApplicationScafiProgram[T, P]])
+          .find(_.asMolecule == asMolecule)
+      })
+      .collect { case Some(program) => program }
+      .map(_.node.getId)
+    applicationNeighborsCache.addAll(newApplicationNeighbors)
+    alreadyCached ++ newApplicationNeighbors
   }
 
   def setSurrogateFor(nodeId: ID): Unit = surrogateForNodes.add(nodeId)
