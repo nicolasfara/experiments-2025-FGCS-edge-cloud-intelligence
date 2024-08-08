@@ -102,6 +102,7 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
         }
         val capitalizedName = it.nameWithoutExtension.replaceFirstChar { c -> c.titlecase() }
         val graphic by basetask("run${capitalizedName}Graphic") {
+            jvmArgs("-Dsun.java2d.opengl=false")
             args(
                 "--override",
                 "monitors: { type: SwingGUI, parameters: { graphics: effects/${it.nameWithoutExtension}.json } }",
