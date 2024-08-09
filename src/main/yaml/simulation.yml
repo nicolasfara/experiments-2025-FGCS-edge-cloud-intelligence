@@ -13,9 +13,12 @@ variables:
     type: ArbitraryVariable
     parameters: [0.1, [0.1, 0.2]]
   #------------------------------------------------------------------
+  gradientProgram: &gradientProgram
+    language: scala
+    formula: "\"it.unibo.alchemist.Main\""
   programDag: &programDag
     language: scala
-    formula: Map("it.unibo.alchemist.Gradient" -> Set[String]())
+    formula: Map(gradientProgram -> Set[String]())
 
 seeds:
   scenario: *seed
@@ -26,7 +29,7 @@ launcher:
     batch: [seed, spacing, error]
 
 network-model:
-  type: ConnectWithinDistance
+  type: ConnectWithinDistancesEdge
   parameters: [1.5]
 
 _constants:
@@ -38,21 +41,27 @@ _programs:
       type: Event
       actions:
         - type: RunSurrogateScafiProgram
-          parameters: [ "it.unibo.alchemist.Main", *retentionTime, *programDag ]
+          parameters: [ *gradientProgram, *retentionTime, *programDag ]
     - program: sendSurrogate
   - program: &gradient
-      - time-distribution: 1
-        type: Event
-        actions:
-          - type: RunApplicationScafiProgram
-            parameters: [ "it.unibo.alchemist.Main", *retentionTime, *programDag ]
-      - program: send
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: RunApplicationScafiProgram
+          parameters: [ *gradientProgram, *retentionTime, *programDag ]
+    - program: send
+  - program: &runtime
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: ModularizationRuntime
 
 deployments:
   - type: Grid
     parameters: [-5, -5, 5, 5, *spacing, *spacing, *error, *error]
     programs:
       - *gradient
+      - *runtime
     properties:
       - type: AllocatorProperty
         parameters: [ *programDag ]

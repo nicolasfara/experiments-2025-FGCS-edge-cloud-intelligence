@@ -21,7 +21,7 @@ sealed abstract class RunScafiProgram[T, P <: Position[P]](node: Node[T]) extend
   def asMolecule: Molecule = new SimpleMolecule(getClass.getSimpleName)
   def isComputationalCycleComplete: Boolean
   def programNameMolecule: Molecule
-  def programDag: Map[String, List[String]]
+  def programDag: Map[String, Set[String]]
   def prepareForComputationalCycle(): Unit
 }
 
@@ -40,7 +40,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     randomGenerator: RandomGenerator,
     programName: String,
     retentionTime: Double,
-    programDagMapping: Map[String, List[String]] = Map.empty
+    programDagMapping: Map[String, Set[String]] = Map.empty
 ) extends RunScafiProgram[T, P](node) {
 
   def this(
@@ -65,7 +65,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
   private var completed = false
 
   // --------------------- Modularization-related properties
-  override val programDag: Map[String, List[String]] = programDagMapping
+  override val programDag = programDagMapping
   private val applicationNeighborsCache = collection.mutable.Set[ID]()
   private var neighborhoodManager: Map[ID, NeighborData[P]] = Map()
   private val inputFromComponents = collection.mutable.Map[ID, mutable.Buffer[(Path, T)]]()
@@ -120,16 +120,18 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     // ----- Check if the program is offloaded to a surrogate or not
     if (isOffloadedToSurrogate) {
       val surrogateDeviceId = allocator
-        .getDeviceIdForComponent(asMolecule.getName)
+        .getDeviceIdForComponent(programName)
         .getOrElse(throw new IllegalStateException("The program is offloaded to a surrogate, but the target device is not found"))
       val surrogateNode = environment.getNodeByID(surrogateDeviceId)
       val surrogateProgram = SurrogateScafiIncarnation
         .allScafiProgramsForType(surrogateNode, classOf[RunSurrogateScafiProgram[T, P]])
         .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
-        .find(_.asMolecule == asMolecule)
+        .find(_.programNameMolecule == programNameMolecule)
         .getOrElse(throw new IllegalStateException(s"Unable to find `RunSurrogateScafiProgram` for the node $surrogateDeviceId"))
       surrogateProgram.setContextFor(node.getId, context)
       surrogateProgram.setCurrentNeighborhoodOf(node.getId, currentApplicativeNeighborhood)
+      surrogateProgram.setSurrogateFor(node.getId)
+      // TODO: comunicare al surrogato che sto facendo offloading su di lui
     } else {
       // Execute normal program since is executed locally
       val computed = program(context)
@@ -156,7 +158,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
         SurrogateScafiIncarnation
           .allScafiProgramsForType(environment.getNodeByID(id), classOf[RunApplicationScafiProgram[T, P]])
           .map(_.asInstanceOf[RunApplicationScafiProgram[T, P]])
-          .find(_.asMolecule == asMolecule)
+          .find(_.programNameMolecule == programNameMolecule)
       })
       .collect { case Some(program) => program }
       .map(_.node.getId)
@@ -191,7 +193,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     path -> result
   }
 
-  private def isOffloadedToSurrogate: Boolean = allocator.isOffloaded(asMolecule.getName, node)
+  private def isOffloadedToSurrogate: Boolean = allocator.isOffloaded(programName, node)
 
   private def mergeInputFromComponentsWithExport(): Unit = {
     for {
@@ -215,7 +217,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
     randomGenerator: RandomGenerator,
     programName: String,
     retentionTime: Double,
-    programDagMapping: Map[String, List[String]] = Map.empty
+    programDagMapping: Map[String, Set[String]] = Map.empty
 ) extends RunScafiProgram[T, P](node) {
 
   def this(
@@ -290,7 +292,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
         SurrogateScafiIncarnation
           .allScafiProgramsForType(environment.getNodeByID(id), classOf[RunApplicationScafiProgram[T, P]])
           .map(_.asInstanceOf[RunApplicationScafiProgram[T, P]])
-          .find(_.asMolecule == asMolecule)
+          .find(_.programNameMolecule == programNameMolecule)
       })
       .collect { case Some(program) => program }
       .map(_.node.getId)

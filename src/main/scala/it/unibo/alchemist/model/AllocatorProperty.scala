@@ -7,7 +7,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 class AllocatorProperty[T, P <: Position[P]](
     environment: Environment[T, _],
     node: Node[T],
-    programDag: Map[ComponentId, Set[ComponentId]]
+    programDag: Map[ComponentId, Set[ComponentId]],
 ) extends NodeProperty[T] {
 
   private var componentsAllocation: Map[ComponentId, Int] = programDag.view.mapValues(_ => node.getId).toMap
@@ -44,7 +44,7 @@ class AllocatorProperty[T, P <: Position[P]](
     */
   private def checkComponentsValidity(
       allocation: Map[ComponentId, Int],
-      programDag: Map[ComponentId, Set[ComponentId]]
+      programDag: Map[ComponentId, Set[ComponentId]],
   ): Option[UnknownComponentException] = {
     val unknownComponents = allocation.keys.filterNot(programDag.contains).toList
     if (unknownComponents.nonEmpty) {
@@ -61,7 +61,7 @@ class AllocatorProperty[T, P <: Position[P]](
     */
   private def checkAllocationValidity(
       allocation: Map[ComponentId, Int],
-      neighbors: Set[Int]
+      neighbors: Set[Int],
   ): Option[AllocationException] = {
     val invalidComponents = allocation.filterNot { case (_, value) => neighbors.contains(value) }
     if (invalidComponents.nonEmpty) {
