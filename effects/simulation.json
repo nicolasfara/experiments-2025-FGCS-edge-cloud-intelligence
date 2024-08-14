@@ -34,7 +34,7 @@
       "val": 20
     },
     "molFilter": true,
-    "molString": "it.unibo.alchemist.Main",
+    "molString": "it.unibo.alchemist.Gradient",
     "molPropertyFilter": true,
     "property": "",
     "writingPropertyValue": false,
