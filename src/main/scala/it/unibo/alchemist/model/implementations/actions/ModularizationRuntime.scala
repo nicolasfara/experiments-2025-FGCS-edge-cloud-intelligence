@@ -22,7 +22,7 @@ class ModularizationRuntime[T, P <: Position[P]](
     val surrogate = environment.getNodes.iterator().asScala.find(_.contains(infrastructuralMolecule))
       .getOrElse(throw new IllegalStateException("No surrogate found"))
     allocator.setComponentsAllocation(
-      Map("it.unibo.alchemist.Main" -> surrogate.getId),
+      Map("it.unibo.alchemist.Gradient" -> surrogate.getId),
     )
   }
 }
