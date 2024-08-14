@@ -40,7 +40,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     randomGenerator: RandomGenerator,
     programName: String,
     retentionTime: Double,
-    programDagMapping: Map[String, Set[String]] = Map.empty
+    programDagMapping: Map[String, Set[String]] = Map.empty,
 ) extends RunScafiProgram[T, P](node) {
 
   def this(
@@ -48,7 +48,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
       node: Node[T],
       reaction: Reaction[T],
       randomGenerator: RandomGenerator,
-      programName: String
+      programName: String,
   ) = this(environment, node, reaction, randomGenerator, programName, FastMath.nextUp(1.0 / reaction.getTimeDistribution.getRate))
 
   declareDependencyTo(Dependency.EVERY_MOLECULE)
@@ -61,7 +61,6 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
     .asInstanceOf[CONTEXT => EXPORT]
   override val programNameMolecule = new SimpleMolecule(programName)
   lazy val nodeManager = new SimpleNodeManager(node)
-//  private val targetMolecule = new SimpleMolecule("Target")
   private var completed = false
 
   // --------------------- Modularization-related properties
@@ -112,7 +111,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
       node,
       neighborhoodManager,
       nodeManager,
-      randomGenerator
+      randomGenerator,
     )
 
     mergeInputFromComponentsWithExport()
@@ -123,15 +122,16 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
         .getDeviceIdForComponent(programName)
         .getOrElse(throw new IllegalStateException("The program is offloaded to a surrogate, but the target device is not found"))
       val surrogateNode = environment.getNodeByID(surrogateDeviceId)
+      // Throw an exception if the surrogate is not in the neighborhood!
+      if (!isInNeighbors(surrogateNode))
+        throw new IllegalStateException(s"Surrogate $surrogateDeviceId is not in the neighborhood of node ${node.getId}")
       val surrogateProgram = SurrogateScafiIncarnation
         .allScafiProgramsForType(surrogateNode, classOf[RunSurrogateScafiProgram[T, P]])
         .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
         .find(_.programNameMolecule == programNameMolecule)
         .getOrElse(throw new IllegalStateException(s"Unable to find `RunSurrogateScafiProgram` for the node $surrogateDeviceId"))
-      surrogateProgram.setContextFor(node.getId, context)
-      surrogateProgram.setCurrentNeighborhoodOf(node.getId, currentApplicativeNeighborhood)
       surrogateProgram.setSurrogateFor(node.getId)
-      // TODO: comunicare al surrogato che sto facendo offloading su di lui
+      surrogateProgram.setContextFor(node.getId, context)
     } else {
       // Execute normal program since is executed locally
       val computed = program(context)
@@ -144,6 +144,11 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
       result <- programResult.exportData.get[T](factory.emptyPath())
     } node.setConcentration(programNameMolecule, result)
     completed = true
+  }
+
+  private def isInNeighbors(surrogateNode: Node[T]): Boolean = {
+    val neighborsNodes = environment.getNeighborhood(node).getNeighbors.iterator().asScala.map(_.getId).toSet
+    neighborsNodes.contains(surrogateNode.getId)
   }
 
   /** Returns the application network neighborhood of the current node.
@@ -175,8 +180,6 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
   def isComputationalCycleComplete: Boolean = completed
 
   override def prepareForComputationalCycle(): Unit = completed = false
-
-  def setResultWhenOffloaded(result: T): Unit = node.setConcentration(asMolecule, result)
 
   def feedInputFromNode(node: ID, value: (Path, T)): Unit = {
     inputFromComponents.get(node) match {
@@ -217,7 +220,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
     randomGenerator: RandomGenerator,
     programName: String,
     retentionTime: Double,
-    programDagMapping: Map[String, Set[String]] = Map.empty
+    programDagMapping: Map[String, Set[String]] = Map.empty,
 ) extends RunScafiProgram[T, P](node) {
 
   def this(
@@ -225,7 +228,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
       node: Node[T],
       reaction: Reaction[T],
       randomGenerator: RandomGenerator,
-      programName: String
+      programName: String,
   ) = this(environment, node, reaction, randomGenerator, programName, FastMath.nextUp(1.0 / reaction.getTimeDistribution.getRate))
 
   private var completed = false
@@ -242,8 +245,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
   override val programDag = programDagMapping
   private val contextManager = collection.mutable.Map[ID, CONTEXT]()
   private val surrogateForNodes = collection.mutable.Set[ID]()
-  private val neighborhoodManager = collection.mutable.Map[ID, collection.mutable.Map[ID, NeighborData[P]]]()
-  private val currentNeighborhoodOfNodes = collection.mutable.Map[ID, Set[ID]]()
+  private val computedResults = collection.mutable.Map[ID, NeighborData[P]]()
   private val applicationNeighborsCache = collection.mutable.Set[ID]()
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] =
@@ -254,15 +256,8 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
       .map(_.getTime)
       .orElse(Failure(new IllegalStateException("The simulation is uninitialized (did you serialize the environment?)")))
       .get
-
-    // Clean the neighborhood manager according to the retention time
-    neighborhoodManager.foreach { case (_, data) =>
-      data.filterInPlace((_, p) => p.executionTime >= alchemistCurrentTime - retentionTime)
-    }
     // Clean the surrogateForNodes according to the retention time
     surrogateForNodes.filterInPlace(activeApplicationNeighborDevices.contains)
-    currentNeighborhoodOfNodes.filterInPlace((nodeId, _) => activeApplicationNeighborDevices.contains(nodeId))
-
     // Run the program for each node offloading the computation to this surrogate
     surrogateForNodes.foreach(deviceId => {
       contextManager.get(deviceId) match {
@@ -270,17 +265,11 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
           val computedResult = program(contextNode)
           val nodePosition = environment.getPosition(environment.getNodeByID(deviceId))
           val toSend = NeighborData(computedResult, nodePosition, alchemistCurrentTime)
-          val neighborsToSend = currentNeighborhoodOfNodes(deviceId)
-            .map(neighId => neighId -> toSend)
-            .to(collection.mutable.Map) ++ Map(deviceId -> toSend)
-          neighborhoodManager.put(deviceId, neighborsToSend)
-          environment.getNodeByID(deviceId).setConcentration(asMolecule, computedResult.root[T]())
+          computedResults(deviceId) = toSend
         case None => ()
       }
     })
-    val resultsForEachComputedNode = neighborhoodManager.view.mapValues(_.view.mapValues(_.exportData.root[T]()).toMap).toMap
-    node.setConcentration(asMolecule, resultsForEachComputedNode.asInstanceOf[T])
-    node.setConcentration(new SimpleMolecule(s"SurrogateFor[$programName]"), isSurrogateFor.asInstanceOf[T])
+    node.setConcentration(new SimpleMolecule(s"SurrogateFor[$programName]"), isSurrogateFor.toList.sorted.asInstanceOf[T])
     completed = true
   }
 
@@ -302,25 +291,16 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
 
   def setSurrogateFor(nodeId: ID): Unit = surrogateForNodes.add(nodeId)
 
-  def setCurrentNeighborhoodOf(nodeId: ID, neighborhood: Set[ID]): Unit =
-    currentNeighborhoodOfNodes.put(nodeId, neighborhood)
-
   def removeSurrogateFor(nodeId: ID): Unit = {
     surrogateForNodes.remove(nodeId)
     contextManager.remove(nodeId)
   }
 
-  def isSurrogateForNode(nodeId: ID): Boolean = surrogateForNodes.contains(nodeId)
-
   def isSurrogateFor: Set[ID] = surrogateForNodes.toSet
 
   def setContextFor(nodeId: ID, context: CONTEXT): Unit = contextManager.put(nodeId, context)
 
-  def getComputedResultFor(nodeId: ID): Option[NeighborData[P]] =
-    for {
-      neighbors <- neighborhoodManager.get(nodeId)
-      computedResult <- neighbors.get(nodeId)
-    } yield computedResult
+  def getComputedResultFor(nodeId: ID): Option[NeighborData[P]] = computedResults.get(nodeId)
 
   def isComputationalCycleComplete: Boolean = completed
 

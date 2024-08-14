@@ -13,20 +13,18 @@ import scala.reflect.ClassTag
 
 sealed abstract class SendScafiMessage[T, P <: Position[P]](
     device: ScafiDevice[T],
-    val program: RunScafiProgram[T, P]
+    val program: RunScafiProgram[T, P],
 ) extends AbstractAction[T](device.getNode())
 
 final class SendApplicationScafiMessage[T, P <: Position[P]](
     environment: Environment[T, P],
     device: ScafiDevice[T],
     reaction: Reaction[T],
-    override val program: RunApplicationScafiProgram[T, P]
+    override val program: RunApplicationScafiProgram[T, P],
 ) extends SendScafiMessage[T, P](device, program) {
   assert(reaction != null, "Reaction cannot be null")
   assert(program != null, "Program cannot be null")
 
-//  private val targetMolecule = new SimpleMolecule("Target")
-  private var messagesExchanged = 0
   private implicit val env: Environment[T, P] = environment
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
@@ -35,9 +33,6 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
     // Send to application neighbors
     val applicationNeighbors = getNeighborsWithProgram[T, P, RunApplicationScafiProgram[T, P]](getNode)
     applicationNeighbors.foreach(sendToNode)
-    messagesExchanged = applicationNeighbors.size
-    getNode.setConcentration(new SimpleMolecule("MessagesExchanged"), messagesExchanged.asInstanceOf[T])
-
     // Get programs to input the computed value
     for {
       componentsToInput <- program.programDag.get(program.programNameMolecule.getName)
@@ -53,7 +48,7 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
     val inputProgram = SurrogateScafiIncarnation
       .allScafiProgramsForType(node, classOf[RunApplicationScafiProgram[T, P]])
       .map(_.asInstanceOf[RunApplicationScafiProgram[T, P]])
-      .find(_.asMolecule.getName == component)
+      .find(_.programNameMolecule.getName == component)
       .getOrElse(throw new IllegalStateException(s"Program $component not found on node ${node.getId}"))
     val (path, optionalValue) = program.generateComponentOutputField()
     optionalValue match {
@@ -73,27 +68,18 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
       case _            => println(s"No data available to send for ${device.getNode.getId} to ${node.getId}, maybe the program has been forwarded")
     }
   }
-
-  def getNeighborsProgramByType[T, P <: Position[P], PG <: Action[T]: ClassTag](node: Node[T])(implicit env: Environment[T, P]): List[PG] = {
-    (for {
-      node <- env.getNeighborhood(node).asScala
-      reaction <- node.getReactions.asScala
-      action <- reaction.getActions.asScala
-      if implicitly[ClassTag[PG]].runtimeClass.isInstance(action)
-    } yield action.asInstanceOf[PG]).toList
-  }
 }
 
 final class SendSurrogateScafiMessage[T, P <: Position[P]](
     environment: Environment[T, P],
     device: ScafiDevice[T],
     reaction: Reaction[T],
-    override val program: RunSurrogateScafiProgram[T, P]
+    override val program: RunSurrogateScafiProgram[T, P],
 ) extends SendScafiMessage[T, P](device, program) {
   assert(reaction != null, "Reaction cannot be null")
   assert(program != null, "Program cannot be null")
 
-  private var messageExchanged = 0
+//  private var messageExchanged = 0
   override def getContext: Context = Context.NEIGHBORHOOD
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
@@ -101,20 +87,19 @@ final class SendSurrogateScafiMessage[T, P <: Position[P]](
   override def execute(): Unit = {
     /*
      * Rationale: I need to send back the computed result to the original node since the other `send` will propagate
-     * the the neighbors not managed by this device.
+     * the neighbors not managed by this device.
      * This is the case when the physical neighborhood is not fully offloaded to this device.
      */
-    program.isSurrogateFor.foreach(nodeId => {
+    val actualNeighbors = environment.getNeighborhood(getNode).getNeighbors.iterator().asScala.toSet.map((x: Node[T]) => x.getId)
+    val (alreadyPresent, oldNeighbors) = program.isSurrogateFor.partition(actualNeighbors.contains)
+    alreadyPresent.foreach(nodeId => {
       for {
         toSend <- program.getComputedResultFor(nodeId)
         localProgram <- getLocalProgramForNode(nodeId)
-      } {
-        localProgram.sendExport(nodeId, toSend)
-        localProgram.setResultWhenOffloaded(toSend.exportData.root())
-      }
+      } localProgram.sendExport(nodeId, toSend)
     })
-    messageExchanged = program.isSurrogateFor.size
-    getNode.setConcentration(new SimpleMolecule("MessagesExchanged"), messageExchanged.asInstanceOf[T])
+    // Remove old neighbors no more connected
+    oldNeighbors.foreach(program.removeSurrogateFor)
     program.prepareForComputationalCycle()
   }
 
@@ -124,7 +109,7 @@ final class SendSurrogateScafiMessage[T, P <: Position[P]](
       reactions <- node.getReactions.asScala
       action <- reactions.getActions.asScala
     } yield action match {
-      case prog: RunApplicationScafiProgram[T, P] => if (program.asMolecule == prog.programNameMolecule) prog else null
+      case prog: RunApplicationScafiProgram[T, P] => if (program.programNameMolecule == prog.programNameMolecule) prog else null
       case _                                      => null
     }
     localPrograms.filter(_ != null).find(action => action.nodeManager.node.getId == nodeId)

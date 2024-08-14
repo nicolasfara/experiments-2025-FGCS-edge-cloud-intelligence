@@ -5,7 +5,7 @@ import it.unibo.alchemist.model.implementations.actions.{
   RunSurrogateScafiProgram,
   SendApplicationScafiMessage,
   SendScafiMessage,
-  SendSurrogateScafiMessage
+  SendSurrogateScafiMessage,
 }
 import it.unibo.alchemist.model.implementations.conditions.ScafiComputationalRoundComplete
 import it.unibo.alchemist.model.implementations.nodes.ScafiDevice
@@ -58,7 +58,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
   override def createNode(
       randomGenerator: RandomGenerator,
       environment: Environment[T, P],
-      parameter: Any
+      parameter: Any,
   ): Node[T] = {
     val scafiNode = new GenericNode[T](this, environment)
     scafiNode.addProperty(new ScafiDevice(scafiNode))
@@ -69,7 +69,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
       randomGenerator: RandomGenerator,
       environment: Environment[T, P],
       node: Node[T],
-      parameters: Any
+      parameters: Any,
   ): TimeDistribution[T] = {
     Option(parameters) match {
       case None => new ExponentialTime[T](Double.PositiveInfinity, randomGenerator)
@@ -87,7 +87,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
       environment: Environment[T, P],
       node: Node[T],
       timeDistribution: TimeDistribution[T],
-      parameters: Any
+      parameters: Any,
   ): Reaction[T] = {
     val parameterString = Option(parameters).map(_.toString)
     val isSend = parameterString.exists(parameter => parameter.equalsIgnoreCase("send") || parameter.equalsIgnoreCase("sendSurrogate"))
@@ -95,7 +95,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
     val result: Reaction[T] = if (isSend) {
       new ChemicalReaction[T](
         Objects.requireNonNull(node),
-        Objects.requireNonNull(timeDistribution)
+        Objects.requireNonNull(timeDistribution),
       )
     } else {
       new Event[T](node, timeDistribution)
@@ -103,12 +103,12 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
 
     parameterString.foreach { param =>
       result.setActions(
-        ListBuffer[Action[T]](createAction(randomGenerator, environment, node, timeDistribution, result, param)).asJava
+        ListBuffer[Action[T]](createAction(randomGenerator, environment, node, timeDistribution, result, param)).asJava,
       )
     }
     if (isSend) {
       result.setConditions(
-        ListBuffer[Condition[T]](createCondition(randomGenerator, environment, node, timeDistribution, result, null)).asJava
+        ListBuffer[Condition[T]](createCondition(randomGenerator, environment, node, timeDistribution, result, null)).asJava,
       )
     }
     result
@@ -120,27 +120,36 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
       node: Node[T],
       time: TimeDistribution[T],
       actionable: Actionable[T],
-      additionalParameters: Any
+      additionalParameters: Any,
   ): Condition[T] = SurrogateScafiIncarnation.runInScafiDeviceContext[T, Condition[T]](
     node,
     message = s"The node must have a ${classOf[ScafiDevice[_]].getSimpleName} property",
     device => {
       val isSurrogate = node.getReactions.asScala.flatMap(_.getActions.asScala).exists(_.isInstanceOf[RunSurrogateScafiProgram[_, _]])
       val programClazz = if (isSurrogate) classOf[RunSurrogateScafiProgram[T, P]] else classOf[RunApplicationScafiProgram[T, P]]
+      val programType = actionable.getActions.asScala
+        .filter(_.isInstanceOf[SendScafiMessage[T, P]])
+        .map(_.asInstanceOf[SendScafiMessage[T, P]])
+        .head.program.programNameMolecule
       val alreadyDone = SurrogateScafiIncarnation
         .allConditionsFor(node, programClazz)
         .map(_.asInstanceOf[ScafiComputationalRoundComplete[T, P, _]])
         .map(_.program)
-      val allScafiPrograms = SurrogateScafiIncarnation.allScafiProgramsForType[T, P](node, programClazz)
-      if (allScafiPrograms.isEmpty) {
+        .map(_.asInstanceOf[RunScafiProgram[T, P]])
+        .filter(_.programNameMolecule == programType)
+      val allScafiPrograms = SurrogateScafiIncarnation
+        .allScafiProgramsForType[T, P](node, programClazz)
+        .map(_.asInstanceOf[RunScafiProgram[T, P]])
+        .filter(_.programNameMolecule == programType)
+      val notDoneScafiPrograms = allScafiPrograms.toList diff alreadyDone.toList
+      if (notDoneScafiPrograms.isEmpty) {
         throw new IllegalStateException(s"There is no program requiring a ${programClazz.getSimpleName} condition")
       }
-      if (allScafiPrograms.size > 1) {
+      if (notDoneScafiPrograms.size > 1) {
         throw new IllegalStateException(s"There are too many programs requiring a ${programClazz.getSimpleName} condition: $allScafiPrograms")
       }
-      val programsToComplete = allScafiPrograms.filterNot(t => alreadyDone.exists(e => e == t))
-      return new ScafiComputationalRoundComplete(device, programsToComplete.head.asInstanceOf[RunScafiProgram[T, P]], programClazz)
-    }
+      return new ScafiComputationalRoundComplete(device, notDoneScafiPrograms.head, programClazz)
+    },
   )
 
   override def createAction(
@@ -149,7 +158,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
       node: Node[T],
       time: TimeDistribution[T],
       actionable: Actionable[T],
-      param: Any
+      param: Any,
   ): Action[T] = SurrogateScafiIncarnation.runInScafiDeviceContext[T, Action[T]](
     node,
     message = s"The node must have a ${classOf[ScafiDevice[_]].getSimpleName} property",
@@ -176,17 +185,17 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
           environment,
           device,
           actionable.asInstanceOf[Reaction[T]],
-          programsToComplete.head.asInstanceOf[RunSurrogateScafiProgram[T, P]]
+          programsToComplete.head.asInstanceOf[RunSurrogateScafiProgram[T, P]],
         )
       } else {
         return new SendApplicationScafiMessage[T, P](
           environment,
           device,
           actionable.asInstanceOf[Reaction[T]],
-          programsToComplete.head.asInstanceOf[RunApplicationScafiProgram[T, P]]
+          programsToComplete.head.asInstanceOf[RunApplicationScafiProgram[T, P]],
         )
       }
-    }
+    },
   )
 }
 
