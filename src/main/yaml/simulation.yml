@@ -15,10 +15,13 @@ variables:
   #------------------------------------------------------------------
   gradientProgram: &gradientProgram
     language: scala
-    formula: "\"it.unibo.alchemist.Main\""
+    formula: "\"it.unibo.alchemist.Gradient\""
+  greaterDistance: &greaterDistance
+    language: scala
+    formula: "\"it.unibo.alchemist.GreaterDistance\""
   programDag: &programDag
     language: scala
-    formula: Map(gradientProgram -> Set[String]())
+    formula: Map(gradientProgram -> Set(greaterDistance))
 
 seeds:
   scenario: *seed
@@ -50,6 +53,13 @@ _programs:
         - type: RunApplicationScafiProgram
           parameters: [ *gradientProgram, *retentionTime, *programDag ]
     - program: send
+  - program: &greater
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: RunApplicationScafiProgram
+          parameters: [ *greaterDistance, *retentionTime, *programDag ]
+    - program: send
   - program: &runtime
     - time-distribution: 1
       type: Event
@@ -61,6 +71,7 @@ deployments:
     parameters: [-5, -5, 5, 5, *spacing, *spacing, *error, *error]
     programs:
       - *gradient
+      - *greater
       - *runtime
     properties:
       - type: AllocatorProperty
