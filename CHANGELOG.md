@@ -1,3 +1,30 @@
+## [1.0.1](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/compare/1.0.0...1.0.1) (2024-08-14)
+
+### Dependency updates
+
+* **deps:** update alchemist bundle ([2334fa9](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/2334fa9813bb4a92dd277a5e4933820b030255e4))
+
+### Bug Fixes
+
+* solve a problem preventing the use of multiple RunScafiProgram ([99207cc](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/99207cc199dd6bf4fa1500ccc799a88f181d2fad))
+
+### Build and continuous integration
+
+* disable opengl acceleration because of wayland ([f4f6040](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/f4f604012970e8dcdee3c345f7123c3a3bd28a80))
+* fix capitalize ([14dc914](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/14dc9145d519aef01fe9ef18b4d88ac143d8d7c2))
+* make happy ktlint ([e918512](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/e918512d2faff0849fba44a5f18df36a9be97dc7))
+* remove protelis ([776a802](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/776a8020bf200f238b44f899312837d333f39969))
+* set scafi simulation ([acdb16c](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/acdb16c732a44cc4f4d18cc71eaa6c70e0a9dc09))
+* use docker compose command ([8ddd42e](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/8ddd42e3e310fbb05b355840616f9eda270d05bd))
+
+### General maintenance
+
+* add scalafmt config file ([fdc2e4b](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/fdc2e4b45bfa123657e77e363ec8f3fe37dfc811))
+* fix component name ([4ebb671](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/4ebb671af8558280ba6eec9ae82c5bab022d8593))
+* fix effect ([75a8a7a](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/75a8a7a755dffd9eb0627c04adcadee77a15bf3e))
+* **release:** update gradle.properties .env versions to 1.0.0 [skip ci] ([d944d8b](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/d944d8ba42636dbd695837938c74f8779233460b))
+* update effect ([3dcef19](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/3dcef190c88aa57c44bf69d0d29d460ec4c577f6))
+
 ## 1.0.0 (2024-08-02)
 
 ### Documentation
