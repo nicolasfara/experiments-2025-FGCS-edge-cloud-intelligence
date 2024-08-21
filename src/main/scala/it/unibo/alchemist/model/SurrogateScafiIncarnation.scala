@@ -125,22 +125,14 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
     node,
     message = s"The node must have a ${classOf[ScafiDevice[_]].getSimpleName} property",
     device => {
-      val isSurrogate = node.getReactions.asScala.flatMap(_.getActions.asScala).exists(_.isInstanceOf[RunSurrogateScafiProgram[_, _]])
-      val programClazz = if (isSurrogate) classOf[RunSurrogateScafiProgram[T, P]] else classOf[RunApplicationScafiProgram[T, P]]
-      val programType = actionable.getActions.asScala
-        .filter(_.isInstanceOf[SendScafiMessage[T, P]])
-        .map(_.asInstanceOf[SendScafiMessage[T, P]])
-        .head.program.programNameMolecule
+      val programClazz =  classOf[RunScafiProgram[T, P]]
       val alreadyDone = SurrogateScafiIncarnation
-        .allConditionsFor(node, programClazz)
+        .allConditionsFor(node, classOf[ScafiComputationalRoundComplete[T, P, _]])
         .map(_.asInstanceOf[ScafiComputationalRoundComplete[T, P, _]])
         .map(_.program)
-        .map(_.asInstanceOf[RunScafiProgram[T, P]])
-        .filter(_.programNameMolecule == programType)
       val allScafiPrograms = SurrogateScafiIncarnation
         .allScafiProgramsForType[T, P](node, programClazz)
         .map(_.asInstanceOf[RunScafiProgram[T, P]])
-        .filter(_.programNameMolecule == programType)
       val notDoneScafiPrograms = allScafiPrograms.toList diff alreadyDone.toList
       if (notDoneScafiPrograms.isEmpty) {
         throw new IllegalStateException(s"There is no program requiring a ${programClazz.getSimpleName} condition")
@@ -165,13 +157,12 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
     body = device => {
       val isSurrogate = param == "sendSurrogate"
       val sendProgramClazz = if (isSurrogate) classOf[SendSurrogateScafiMessage[T, P]] else classOf[SendApplicationScafiMessage[T, P]]
-      val programClazz = if (isSurrogate) classOf[RunSurrogateScafiProgram[T, P]] else classOf[RunApplicationScafiProgram[T, P]]
       val alreadyDone = SurrogateScafiIncarnation
-        .allActionsForType(node, sendProgramClazz)
+        .allActionsForType(node, classOf[SendScafiMessage[T, P]])
         .map(_.asInstanceOf[SendScafiMessage[T, P]])
         .map(_.program)
       val allScafiPrograms = SurrogateScafiIncarnation
-        .allScafiProgramsForType[T, P](node, programClazz)
+        .allScafiProgramsForType[T, P](node, classOf[RunScafiProgram[T, P]])
         .map(_.asInstanceOf[RunScafiProgram[T, P]])
       val programsToComplete = allScafiPrograms.filterNot(t => alreadyDone.exists(e => e == t))
       if (programsToComplete.isEmpty) {
