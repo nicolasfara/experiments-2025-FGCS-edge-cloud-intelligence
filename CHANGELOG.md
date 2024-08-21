@@ -1,3 +1,13 @@
+## [1.0.2](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/compare/1.0.1...1.0.2) (2024-08-21)
+
+### Bug Fixes
+
+* thx [@cric96](https://github.com/cric96) for your refactor ([f0c27ed](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/f0c27ed1b8da27f9ef4dcc9fc06a81008b46d355))
+
+### General maintenance
+
+* **release:** update gradle.properties .env versions to 1.0.1 [skip ci] ([6469007](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/6469007ccd506a29f556d0e0bb50cd7360b8e354))
+
 ## [1.0.1](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/compare/1.0.0...1.0.1) (2024-08-14)
 
 ### Dependency updates
