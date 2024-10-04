@@ -2,7 +2,7 @@ package it.unibo.alchemist.model.implementations.actions
 
 import it.unibo.alchemist.model.actions.AbstractLocalAction
 import it.unibo.alchemist.model.molecules.SimpleMolecule
-import it.unibo.alchemist.model.{Action, AllocatorProperty, Environment, Node, Position, Reaction}
+import it.unibo.alchemist.model.{Action, AllocatorProperty, BatteryEquippedDevice, Environment, Node, Position, Reaction}
 
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 

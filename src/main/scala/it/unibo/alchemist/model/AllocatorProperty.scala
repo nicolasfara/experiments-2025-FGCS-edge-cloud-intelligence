@@ -5,7 +5,7 @@ import it.unibo.alchemist.model.AllocatorProperty.{AllocationException, Componen
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class AllocatorProperty[T, P <: Position[P]](
-    environment: Environment[T, _],
+    environment: Environment[T, P],
     node: Node[T],
     programDag: Map[ComponentId, Set[ComponentId]],
 ) extends NodeProperty[T] {

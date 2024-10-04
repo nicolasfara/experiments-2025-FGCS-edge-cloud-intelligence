@@ -22,6 +22,10 @@ variables:
   programDag: &programDag
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
+  componentsInstructions: &componentsInstructions
+    language: scala
+    formula: |
+      Map(gradientProgram -> 10_000_000L)
 
 seeds:
   scenario: *seed
@@ -65,6 +69,12 @@ _programs:
       type: Event
       actions:
         - type: ModularizationRuntime
+  - program: &batteryDevice
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: BatteryEquippedDevice
+          parameters: [ 4200.0, 0.001, *componentsInstructions ]
 
 deployments:
   - type: Grid
@@ -73,6 +83,7 @@ deployments:
       - *gradient
       - *greater
       - *runtime
+      - *batteryDevice
     properties:
       - type: AllocatorProperty
         parameters: [ *programDag ]
