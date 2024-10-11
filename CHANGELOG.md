@@ -1,3 +1,17 @@
+## [1.1.0](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/compare/1.0.2...1.1.0) (2024-10-11)
+
+### Features
+
+* implement battery consumption model ([4f79a5b](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/4f79a5b5fd00d50d3aba7db0e80cab32e3586784))
+
+### Bug Fixes
+
+* remove scala version implementation ([3160479](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/3160479c357101fa6713e2a3e0bdfd469168455b))
+
+### General maintenance
+
+* **release:** update gradle.properties .env versions to 1.0.2 [skip ci] ([721abf5](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/commit/721abf592eba5429e391d889b833f931a9653ba4))
+
 ## [1.0.2](https://github.com/nicolasfara/experiments-2024-taas-edge-cloud-intelligence/compare/1.0.1...1.0.2) (2024-08-21)
 
 ### Bug Fixes
