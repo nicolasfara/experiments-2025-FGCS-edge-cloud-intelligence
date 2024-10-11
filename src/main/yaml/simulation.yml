@@ -23,9 +23,9 @@ variables:
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
   componentsInstructions: &componentsInstructions
-    language: scala
+    language: kotlin
     formula: |
-      Map(gradientProgram -> 10_000_000L)
+      mapOf(gradientProgram to 10_000_000L)
 
 seeds:
   scenario: *seed
