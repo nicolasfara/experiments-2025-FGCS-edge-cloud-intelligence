@@ -14,7 +14,14 @@ import me.shadaj.scalapy.readwrite.{Reader, Writer}
 
 trait Tensor
 case class Vector(data: Seq[Double]) extends Tensor
-case class Matrix(data: Seq[(Int, Seq[Int])]) extends Tensor
+case class Matrix(data: Seq[(Int, Seq[Int])]) extends Tensor {
+  def toCoordinateFormat: (Seq[Int], Seq[Int]) = {
+    val startingEdges = data.map { case (self, neighs) => Seq.fill(neighs.length)(self) }
+    val endEdges = data.flatMap { case (_, neighs) => neighs }
+    (startingEdges.flatten, endEdges)
+  }
+  def allEdges: Seq[(Int, Int)] = data.flatMap { case (self, neighs) => neighs.map(neigh => (self, neigh)) }
+}
 
 abstract class GraphBuilderReaction[T, P <: Position[P]](
     environment: Environment[T, P],
@@ -32,14 +39,34 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val applicationNodes = nodes
       .filterNot(n => n.contains(Molecules.infrastructural))
     // .map(n => n.getId)
-    val app2app = toTorchTensor(getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId)))
-    val infr2infr = toTorchTensor(getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId)))
-    val app2infr = toTorchTensor(getEdgeIndexes(applicationNodes.map(_.getId()), infrastructuralNodes.map(_.getId)))
-    val featuresInfrastructural = infrastructuralNodes.map(getFeature).map(toTorchTensor)
-    val featuresApplication = applicationNodes.map(getFeature).map(toTorchTensor)
+    val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
+    val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
+    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
+    val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
+    val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
+    val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
+    val featuresApplication = applicationNodes.map(getNodeFeature).map(toTorchTensor)
+    val featuresInfrastructural = infrastructuralNodes.map(getNodeFeature).map(toTorchTensor)
+    val featureAppToApp = adjacencyAppToApp.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
+    val featureInfraToInfra =
+      adjacencyInfraToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
+    val featureAppToInfra =
+      adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
+    val graph = rlUtils.create_graph(
+      featuresApplication,
+      featuresInfrastructural,
+      pyAdjacencyAppToApp,
+      pyAdjacencyInfraToInfra,
+      pyAdjacencyAppToInfra,
+      featureAppToApp,
+      featureInfraToInfra,
+      featureAppToInfra,
+    )
   }
 
-  protected def getFeature(node: Node[T]): Vector
+  protected def getNodeFeature(node: Node[T]): Vector
+
+  protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector
 
   private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
     neighbors.filter(neigh => nodes.contains(neigh))
