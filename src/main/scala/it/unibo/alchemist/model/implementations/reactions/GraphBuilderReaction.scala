@@ -35,10 +35,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   override protected def executeBeforeUpdateDistribution(): Unit = {
     val infrastructuralNodes = nodes
       .filter(n => n.contains(Molecules.infrastructural))
-    // .map(n => n.getId)
     val applicationNodes = nodes
       .filterNot(n => n.contains(Molecules.infrastructural))
-    // .map(n => n.getId)
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
@@ -47,11 +45,15 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
     val featuresApplication = applicationNodes.map(getNodeFeature).map(toTorchTensor)
     val featuresInfrastructural = infrastructuralNodes.map(getNodeFeature).map(toTorchTensor)
-    val featureAppToApp = adjacencyAppToApp.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
-    val featureInfraToInfra =
-      adjacencyInfraToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
-    val featureAppToInfra =
-      adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2)))
+    val featureAppToApp = toTorchTensor(
+      adjacencyAppToApp.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
+    )
+    val featureInfraToInfra = toTorchTensor(
+      adjacencyInfraToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
+    )
+    val featureAppToInfra = toTorchTensor(
+      adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
+    )
     val graph = rlUtils.create_graph(
       featuresApplication,
       featuresInfrastructural,
@@ -65,7 +67,6 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   }
 
   protected def getNodeFeature(node: Node[T]): Vector
-
   protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector
 
   private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
@@ -81,7 +82,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   }
 
   private def toTorchTensor(data: Tensor): py.Dynamic = data match {
-    case v: Vector => torch.Tensor(v.data, dtype = torch.float64)
+    case v: Vector => torch.tensor(v.data.toPythonCopy, dtype = torch.float64)
     case m: Matrix =>
       val tensors = m.data
         .map { case (self, neighs) => List(List.fill(neighs.length)(self), neighs) }
@@ -90,6 +91,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
         .foldLeft(torch.tensor(tensors.head, dtype = torch.long))((elem, acc) => torch.cat((acc, elem), dim = 1))
   }
 
+  private def toTorchTensor(data: Seq[Tensor]): py.Any = data.map(toTorchTensor)
   private def getNeighbors(n: Node[T]): Seq[Int] = {
     environment
       .getNeighborhood(n)
