@@ -13,35 +13,39 @@ import me.shadaj.scalapy.py
 import me.shadaj.scalapy.readwrite.{Reader, Writer}
 
 trait Tensor
-case class Vector(data: List[Int]) extends Tensor
-case class Matrix(data: List[(Int, List[Int])]) extends Tensor
+case class Vector(data: Seq[Double]) extends Tensor
+case class Matrix(data: Seq[(Int, Seq[Int])]) extends Tensor
 
-class GraphBuilderReaction[T, P <: Position[P]](
+abstract class GraphBuilderReaction[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
 ) extends AbstractGlobalReaction(environment, distribution) {
 
   private implicit def toMolecule(name: String): SimpleMolecule = new SimpleMolecule(name)
-  private implicit def toPythonCollection[K: Reader: Writer](collection: List[K]): py.Any = collection.toPythonProxy
-  private implicit def toPythonCollectionNested[K: Reader: Writer](collection: List[List[K]]): py.Any = collection.toPythonProxy
+  private implicit def toPythonCollection[K: Reader: Writer](collection: Seq[K]): py.Any = collection.toPythonProxy
+  private implicit def toPythonCollectionNested[K: Reader: Writer](collection: Seq[Seq[K]]): py.Any = collection.toPythonProxy
 
   override protected def executeBeforeUpdateDistribution(): Unit = {
     val infrastructuralNodes = nodes
       .filter(n => n.contains(Molecules.infrastructural))
-      .map(n => n.getId)
+    // .map(n => n.getId)
     val applicationNodes = nodes
       .filterNot(n => n.contains(Molecules.infrastructural))
-      .map(n => n.getId)
-    val app2app = getEdgeIndexes(applicationNodes, applicationNodes)
-    val infr2infr = getEdgeIndexes(infrastructuralNodes, infrastructuralNodes)
-    val app2infr = getEdgeIndexes(applicationNodes, infrastructuralNodes)
+    // .map(n => n.getId)
+    val app2app = toTorchTensor(getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId)))
+    val infr2infr = toTorchTensor(getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId)))
+    val app2infr = toTorchTensor(getEdgeIndexes(applicationNodes.map(_.getId()), infrastructuralNodes.map(_.getId)))
+    val featuresInfrastructural = infrastructuralNodes.map(getFeature).map(toTorchTensor)
+    val featuresApplication = applicationNodes.map(getFeature).map(toTorchTensor)
   }
 
-  private def filterNeighbors(neighbors: List[Int], nodes: List[Int]): List[Int] = {
+  protected def getFeature(node: Node[T]): Vector
+
+  private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
     neighbors.filter(neigh => nodes.contains(neigh))
   }
 
-  private def getEdgeIndexes(sourceNodes: List[Int], endNodes: List[Int]): Matrix = {
+  private def getEdgeIndexes(sourceNodes: Seq[Int], endNodes: Seq[Int]): Matrix = {
     val d = nodes
       .filter(n => sourceNodes.contains(n.getId))
       .map(n => (n.getId, getNeighbors(n)))
@@ -50,7 +54,7 @@ class GraphBuilderReaction[T, P <: Position[P]](
   }
 
   private def toTorchTensor(data: Tensor): py.Dynamic = data match {
-    case v: Vector => torch.Tensor(v.data, dtype = torch.long)
+    case v: Vector => torch.Tensor(v.data, dtype = torch.float64)
     case m: Matrix =>
       val tensors = m.data
         .map { case (self, neighs) => List(List.fill(neighs.length)(self), neighs) }
@@ -59,7 +63,7 @@ class GraphBuilderReaction[T, P <: Position[P]](
         .foldLeft(torch.tensor(tensors.head, dtype = torch.long))((elem, acc) => torch.cat((acc, elem), dim = 1))
   }
 
-  private def getNeighbors(n: Node[T]): List[Int] = {
+  private def getNeighbors(n: Node[T]): Seq[Int] = {
     environment
       .getNeighborhood(n)
       .getNeighbors
