@@ -3,6 +3,10 @@ import random
 from torch_geometric.data import HeteroData
 import random
 from torch_geometric.data import Data, Batch
+import torch.nn.functional as F
+from torch_geometric.nn import GATConv
+import torch.nn as nn
+
 def create_graph(
         app_features,
         infrastructural_features,
@@ -71,22 +75,40 @@ class GraphReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
+class GCN(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(GCN, self).__init__()
+        self.conv1 = GATConv(input_dim, hidden_dim, add_self_loops=False, bias=True)
+        self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
+        self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
+        self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
+        self.lin2 = torch.nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+        x = self.conv1(x, edge_index)
+        x = torch.relu(x)
+        x = self.conv2(x, edge_index)
+        x = torch.relu(x)
+        x = self.conv3(x, edge_index)
+        x = torch.relu(x)
+        x = self.lin1(x)
+        x = torch.relu(x)
+        x = self.lin2(x)
+        return x
+
 class DQNTrainer:
-    def __init__(self, env):
-        self.env = env
-        self.n_input = self.env.observation_space['agent0'].shape[0] + 1
-        self.n_output = env.action_space['agent0'].n
-        self.model = ##GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
-        self.target_model = ##GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
+    def __init__(self, input_size, output_size):
+        self.n_input = input_size
+        self.n_output = output_size
+        self.model = GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
+        self.target_model = GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
         self.replay_buffer = GraphReplayBuffer(6000)
-        self.writer = ##tensorboard.SummaryWriter()
         self.episode_rewards = []
         self.episode_losses = []
-        self.episode_obstacle_hits = []
         self.rewards_buffer = []
-        self.obstacle_hits_buffer = []
 
     def train_step_dqn(self, batch_size, model, target_model, ticks, gamma=0.99, update_target_every=10):
         if len(self.replay_buffer) < batch_size:
@@ -106,10 +128,11 @@ class DQNTrainer:
 
         if ticks % update_target_every == 0:
             target_model.load_state_dict(model.state_dict())
-        self.writer.add_scalar('Loss', loss.item(), ticks)
         return loss.item()
 
 
-replay_buffer = GraphReplayBuffer(5)
-replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
-replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+# Just a quick test
+if __name__ == '__main__':
+    replay_buffer = GraphReplayBuffer(5)
+    replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+    replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
