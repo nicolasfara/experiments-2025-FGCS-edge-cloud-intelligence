@@ -4,7 +4,7 @@ from torch_geometric.data import HeteroData
 import random
 from torch_geometric.data import Data, Batch
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATConv, to_hetero
 import torch.nn as nn
 
 def create_graph(
@@ -27,29 +27,6 @@ def create_graph(
     data ["application", "app_to_app", "application"].edges_attr = edges_features_app_to_app
     data ["infrastructure", "infrastructural_to_infrastructural", "infrastructure"].edges_attr = edges_features_infrastructural_to_infrastructural
     return data
-
-
-graph = create_graph(
-    app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0 , 1.0]]),
-    infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-    edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
-    edges_app_to_app=torch.tensor([[0], [1]]),
-    edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
-    edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-    edges_features_app_to_app=torch.tensor([[1.0,2.0]]),
-    edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
-)
-
-graph2 = create_graph(
-    app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0 , 1.0]]),
-    infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-    edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
-    edges_app_to_app=torch.tensor([[0], [1]]),
-    edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
-    edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-    edges_features_app_to_app=torch.tensor([[1.0,2.0]]),
-    edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
-)
 
 class GraphReplayBuffer:
 
@@ -84,8 +61,8 @@ class GCN(torch.nn.Module):
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.lin2 = torch.nn.Linear(hidden_dim, output_dim)
 
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
+    def forward(self, x, edge_index):
+        # x, edge_index = data.x, data.edge_index
         x = self.conv1(x, edge_index)
         x = torch.relu(x)
         x = self.conv2(x, edge_index)
@@ -133,6 +110,34 @@ class DQNTrainer:
 
 # Just a quick test
 if __name__ == '__main__':
-    replay_buffer = GraphReplayBuffer(5)
-    replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
-    replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+
+    graph = create_graph(
+        app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0, 1.0]]),
+        infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+        edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
+        edges_app_to_app=torch.tensor([[0], [1]]),
+        edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
+        edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+        edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
+        edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
+    )
+
+    graph2 = create_graph(
+        app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0, 1.0]]),
+        infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+        edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
+        edges_app_to_app=torch.tensor([[0], [1]]),
+        edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
+        edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+        edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
+        edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
+    )
+
+    # replay_buffer = GraphReplayBuffer(5)
+    # replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+    # replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+
+    model = GCN(input_dim=2, hidden_dim=32, output_dim=8)
+    model = to_hetero(model, graph.metadata(), aggr='sum')
+    output = model(graph.x_dict, graph.edge_index_dict)
+    print(output)
