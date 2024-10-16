@@ -6,12 +6,9 @@ variables:
     max: 1
     step: 1
     default: 0
-  spacing: &spacing
+  nodeCount: &nodeCount
     type: ArbitraryVariable
-    parameters: [1, [0.25, 0.5]]
-  error: &error
-    type: ArbitraryVariable
-    parameters: [0.1, [0.1, 0.2]]
+    parameters: [50, [50, 100, 200]]
   #------------------------------------------------------------------
   gradientProgram: &gradientProgram
     language: scala
@@ -76,9 +73,13 @@ _programs:
         - type: BatteryEquippedDevice
           parameters: [ 4200.0, 1, *componentsInstructions ] # Battery capacity, EPI (nJ), components instructions
 
+environment:
+  type: OSMEnvironment
+  parameters: ["vcm.pbf", false]
+
 deployments:
-  - type: Grid
-    parameters: [-5, -5, 5, 5, *spacing, *spacing, *error, *error]
+  - type: FromGPSTrace
+    parameters: [ *nodeCount, "vcmuser.gpx", false, AlignToTime, [ 1365922800, false, false ] ]
     programs:
       - *gradient
       - *greater
@@ -93,8 +94,17 @@ deployments:
           parameters: [-6, -6, 2, 2]
         molecule: source
         concentration: true
-  - type: Point
-    parameters: [0, 5]
+  - type: SpecificPositions # Edge Servers
+    parameters: [
+      [ 48.2152226, 16.3816613 ],
+      [ 48.2366507, 16.3838339 ],
+      [ 48.2146077, 16.3485146 ],
+      [ 48.2055562, 16.3778687 ],
+      [ 48.1924837, 16.3458967 ],
+      [ 48.1879776, 16.3616896 ],
+      [ 48.1728973, 16.3443303 ],
+      [ 48.2568980, 16.4036303 ],
+    ]
     programs:
       - *surrogateGradient
     contents:
