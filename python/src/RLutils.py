@@ -143,13 +143,13 @@ if __name__ == '__main__':
     model = GCN(hidden_dim=32, output_dim=8)
     model = to_hetero(model, graph.metadata(), aggr='sum')
     output = model(graph.x_dict, graph.edge_index_dict)
-    print(output)
-    print(graph)
+    print('OK!')
 
-    print('-------------------------------- Checking Learning --------------------------------')
+    print('-------------------------------- Checking Learning -------------------------------')
     # Checks learning step
     trainer = DQNTrainer(8)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
     trainer.train_step_dqn(batch_size=5, ticks=0, gamma=0.99, update_target_every=10)
+    print('OK!')
     
