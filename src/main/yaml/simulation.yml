@@ -10,6 +10,9 @@ variables:
     type: ArbitraryVariable
     parameters: [50, [50, 100, 200]]
   #------------------------------------------------------------------
+  moveFrequency: &moveFrequency
+    language: scala
+    formula: 1.0 / 2
   gradientProgram: &gradientProgram
     language: scala
     formula: "\"it.unibo.alchemist.Gradient\""
@@ -35,6 +38,10 @@ launcher:
 network-model:
   type: ConnectWithinDistancesEdge
   parameters: [2500]
+
+_reproduceGpsTrace: &ReproduceGPSTrace
+  type: GPSTraceWalker
+  parameters: [ "vcmuser.gpx", false, AlignToTime, [ 1365922800, false, false ] ]
 
 _constants:
   retentionTime: &retentionTime 25.0
@@ -72,6 +79,11 @@ _programs:
       actions:
         - type: BatteryEquippedDevice
           parameters: [ 4200.0, 1, *componentsInstructions ] # Battery capacity, EPI (nJ), components instructions
+  - program: &moveWithTraces
+    - time-distribution: *moveFrequency
+      type: Event
+      actions:
+        - *ReproduceGPSTrace
 
 environment:
   type: OSMEnvironment
@@ -84,6 +96,7 @@ deployments:
       - *gradient
       - *greater
       - *runtime
+      - *moveWithTraces
       - *batteryDevice
     properties:
       - type: AllocatorProperty
