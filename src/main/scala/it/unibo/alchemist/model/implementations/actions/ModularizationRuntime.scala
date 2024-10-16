@@ -19,7 +19,7 @@ class ModularizationRuntime[T, P <: Position[P]](
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
   override def execute(): Unit = {
-    val surrogate = environment.getNodes
+    val surrogate = environment.getNeighborhood(node)
       .iterator()
       .asScala
       .find(_.contains(infrastructuralMolecule))

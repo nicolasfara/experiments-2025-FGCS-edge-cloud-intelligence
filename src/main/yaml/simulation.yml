@@ -34,7 +34,7 @@ launcher:
 
 network-model:
   type: ConnectWithinDistancesEdge
-  parameters: [1.5]
+  parameters: [2500]
 
 _constants:
   retentionTime: &retentionTime 25.0
@@ -88,12 +88,6 @@ deployments:
     properties:
       - type: AllocatorProperty
         parameters: [ *programDag ]
-    contents:
-      - in:
-          type: Rectangle
-          parameters: [-6, -6, 2, 2]
-        molecule: source
-        concentration: true
   - type: SpecificPositions # Edge Servers
     parameters: [
       [ 48.2152226, 16.3816613 ],
@@ -101,9 +95,9 @@ deployments:
       [ 48.2146077, 16.3485146 ],
       [ 48.2055562, 16.3778687 ],
       [ 48.1924837, 16.3458967 ],
-      [ 48.1879776, 16.3616896 ],
-      [ 48.1728973, 16.3443303 ],
-      [ 48.2568980, 16.4036303 ],
+#      [ 48.1879776, 16.3616896 ],
+#      [ 48.1728973, 16.3443303 ],
+#      [ 48.2568980, 16.4036303 ],
     ]
     programs:
       - *surrogateGradient
