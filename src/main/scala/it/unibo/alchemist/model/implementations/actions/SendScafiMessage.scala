@@ -7,21 +7,30 @@ import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model.scafi.ScafiIncarnationForAlchemist.ID
 import it.unibo.alchemist.utils.AlchemistScafiUtils.getNeighborsWithProgram
 import it.unibo.alchemist.utils.ScalaJavaInterop.EnvironmentOps
+import org.apache.commons.math3.distribution.BinomialDistribution
+import org.apache.commons.math3.random.RandomGenerator
 
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsScala, IteratorHasAsScala}
 import scala.reflect.ClassTag
 
 sealed abstract class SendScafiMessage[T, P <: Position[P]](
+    random: RandomGenerator,
     device: ScafiDevice[T],
     val program: RunScafiProgram[T, P],
-) extends AbstractAction[T](device.getNode())
+) extends AbstractAction[T](device.getNode()) {
+  private val dropPacketDistribution = new BinomialDistribution(random, 1, 0.5)
+
+  protected def shouldDropPacket(node: Node[T]): Option[Node[T]] =
+    Option.when(dropPacketDistribution.sample() == 1)(node)
+}
 
 final class SendApplicationScafiMessage[T, P <: Position[P]](
+    random: RandomGenerator,
     environment: Environment[T, P],
     device: ScafiDevice[T],
     reaction: Reaction[T],
     override val program: RunApplicationScafiProgram[T, P],
-) extends SendScafiMessage[T, P](device, program) {
+) extends SendScafiMessage[T, P](random, device, program) {
   assert(reaction != null, "Reaction cannot be null")
   assert(program != null, "Program cannot be null")
 
@@ -32,7 +41,10 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
   override def execute(): Unit = {
     // Send to application neighbors
     val applicationNeighbors = getNeighborsWithProgram[T, P, RunApplicationScafiProgram[T, P]](getNode)
-    applicationNeighbors.foreach(sendToNode)
+    for {
+      candidateNode <- applicationNeighbors
+      nodeToSendPacket <- shouldDropPacket(candidateNode) // Drop packet with a certain probability
+    } sendToNode(nodeToSendPacket)
     // Get programs to input the computed value
     for {
       componentsToInput <- program.programDag.get(program.programNameMolecule.getName)
@@ -71,11 +83,12 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
 }
 
 final class SendSurrogateScafiMessage[T, P <: Position[P]](
+    random: RandomGenerator,
     environment: Environment[T, P],
     device: ScafiDevice[T],
     reaction: Reaction[T],
     override val program: RunSurrogateScafiProgram[T, P],
-) extends SendScafiMessage[T, P](device, program) {
+) extends SendScafiMessage[T, P](random, device, program) {
   assert(reaction != null, "Reaction cannot be null")
   assert(program != null, "Program cannot be null")
 
@@ -93,10 +106,12 @@ final class SendSurrogateScafiMessage[T, P <: Position[P]](
     val actualNeighbors = environment.getNeighborhood(getNode).getNeighbors.iterator().asScala.toSet.map((x: Node[T]) => x.getId)
     val (alreadyPresent, oldNeighbors) = program.isSurrogateFor.partition(actualNeighbors.contains)
     alreadyPresent.foreach(nodeId => {
+      val node = environment.getNodeByID(nodeId)
       for {
         toSend <- program.getComputedResultFor(nodeId)
         localProgram <- getLocalProgramForNode(nodeId)
-      } localProgram.sendExport(nodeId, toSend)
+        nodeToSendPacket <- shouldDropPacket(node) // Drop packet with a certain probability
+      } localProgram.sendExport(nodeToSendPacket.getId, toSend)
     })
     // Remove old neighbors no more connected
     oldNeighbors.foreach(program.removeSurrogateFor)

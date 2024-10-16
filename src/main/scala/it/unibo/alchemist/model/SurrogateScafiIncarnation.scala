@@ -173,6 +173,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
       }
       if (isSurrogate) {
         return new SendSurrogateScafiMessage[T, P](
+          randomGenerator,
           environment,
           device,
           actionable.asInstanceOf[Reaction[T]],
@@ -180,6 +181,7 @@ class SurrogateScafiIncarnation[T, P <: Position[P]] extends Incarnation[T, P] {
         )
       } else {
         return new SendApplicationScafiMessage[T, P](
+          randomGenerator,
           environment,
           device,
           actionable.asInstanceOf[Reaction[T]],
