@@ -82,17 +82,27 @@ class DQNTrainer:
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
         self.replay_buffer = GraphReplayBuffer(6000)
+        self.ticks = 0
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
 
-    def train_step_dqn(self, batch_size, ticks, gamma=0.99, update_target_every=10):
+    def select_action(self, graph_observation, epsilon):
+        if random.random() < epsilon:
+            return torch.tensor(random.randint(0, self.output_size - 1))
+        else:
+            self.model.eval()
+            with torch.no_grad():
+                return self.model(graph_observation.x_dict, graph_observation.edge_index_dict)['application'].max(dim=1)[1]
+
+    def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10):
         if len(self.replay_buffer) < batch_size:
             return 0
+
         self.model.train()
         self.optimizer.zero_grad()
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
-        if ticks == 0:
+        if self.ticks == 0:
             metadata = obs.metadata()
             self.model = to_hetero(self.model, metadata, aggr='sum')
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
@@ -105,10 +115,12 @@ class DQNTrainer:
         torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
         self.optimizer.step()
 
-        if ticks % update_target_every == 0:
+        if self.ticks % update_target_every == 0:
+            del self.target_model
             self.target_model = GCN(hidden_dim=32, output_dim=self.output_size)
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
             self.target_model.load_state_dict(self.model.state_dict())
+        self.ticks += 1
         return loss.item()
 
 
@@ -150,6 +162,6 @@ if __name__ == '__main__':
     trainer = DQNTrainer(8)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
-    trainer.train_step_dqn(batch_size=5, ticks=0, gamma=0.99, update_target_every=10)
+    trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
     print('OK!')
     
