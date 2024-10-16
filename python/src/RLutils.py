@@ -4,7 +4,7 @@ from torch_geometric.data import HeteroData
 import random
 from torch_geometric.data import Data, Batch
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv, to_hetero
+from torch_geometric.nn import GATConv, to_hetero, SAGEConv
 import torch.nn as nn
 
 def create_graph(
@@ -77,7 +77,7 @@ class GCN(torch.nn.Module):
 class DQNTrainer:
     def __init__(self, output_size):
         self.n_output = output_size
-        self.model = GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
+        self.model = GCN(hidden_dim=32, output_dim=self.n_output)
         self.target_model = GCN(hidden_dim=32, output_dim=self.n_output)
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
@@ -94,10 +94,23 @@ class DQNTrainer:
             return 0
         self.model.train()
         self.optimizer.zero_grad()
+        print(f"BATCH SIZE {batch_size}")
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
-        print(obs)
-        values = self.model(obs).gather(1, actions.unsqueeze(1))
-        nextValues = self.target_model(nextObs).max(dim=1)[0].detach()
+        if ticks == 0:
+            self.model = to_hetero(self.model, obs.metadata(), aggr='sum')
+            self.target_model = to_hetero(self.target_model, obs.metadata(), aggr='sum')
+        values = self.model(obs.x_dict, obs.edge_index_dict)['application']#
+        nv = values.gather(1, actions.unsqueeze(1))
+        print(actions)
+        print(actions.unsqueeze(1))
+        print("DIOCANEDIOCANE")
+        nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application']#.max(dim=1)[0].detach()
+        print(values.size())
+        print(values)
+        print(nv)
+        print(nv.size())
+        # print(nextValues)
+        # print(nextValues.size())
         targetValues = rewards + gamma * nextValues
         loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
         self.optimizer.zero_grad()
@@ -138,7 +151,7 @@ if __name__ == '__main__':
     print('---------------------------------- Checking GCN ----------------------------------')
 
     # Checks that the GCN is correctly created
-    model = GCN(input_dim=3, hidden_dim=32, output_dim=8)
+    model = GCN(hidden_dim=32, output_dim=8)
     model = to_hetero(model, graph.metadata(), aggr='sum')
     output = model(graph.x_dict, graph.edge_index_dict)
     print(output)
@@ -146,8 +159,8 @@ if __name__ == '__main__':
 
     print('-------------------------------- Checking Learning --------------------------------')
     # Checks learning step
-    trainer = DQNTrainer(2, 8)
+    trainer = DQNTrainer(8)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
-    trainer.train_step_dqn(batch_size=5, ticks=1, gamma=0.99, update_target_every=10)
+    trainer.train_step_dqn(batch_size=5, ticks=0, gamma=0.99, update_target_every=10)
     
