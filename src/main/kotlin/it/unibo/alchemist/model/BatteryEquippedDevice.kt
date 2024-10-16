@@ -84,11 +84,12 @@ class BatteryEquippedDevice<T, P : Position<P>> @JvmOverloads constructor(
     }
 
     private fun dischargeLogic(deltaTime: Double) {
+        val epiInJoule = deviceEnergyPerInstruction * 1e-9 // Convert nJ to J
         val componentsConsumedEnergy = actualComponents
             .mapValues { (component, instructions) ->
                 when (component) {
-                    "os" -> random.nextDouble() * instructions * deviceEnergyPerInstruction
-                    else -> instructions * deviceEnergyPerInstruction
+                    "os" -> random.nextDouble() * instructions * epiInJoule
+                    else -> instructions * epiInJoule
                 }
             }
             .values

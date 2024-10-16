@@ -25,7 +25,7 @@ variables:
   componentsInstructions: &componentsInstructions
     language: kotlin
     formula: |
-      mapOf(gradientProgram to 10_000_000L)
+      mapOf(gradientProgram to 1_000_000L)
 
 seeds:
   scenario: *seed
@@ -74,7 +74,7 @@ _programs:
       type: Event
       actions:
         - type: BatteryEquippedDevice
-          parameters: [ 4200.0, 0.001, *componentsInstructions ]
+          parameters: [ 4200.0, 1, *componentsInstructions ] # Battery capacity, EPI (nJ), components instructions
 
 deployments:
   - type: Grid

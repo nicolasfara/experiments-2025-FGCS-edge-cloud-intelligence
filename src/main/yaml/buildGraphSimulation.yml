@@ -34,5 +34,3 @@ deployments:
         parameters: [ -6, -6, 2, 2 ]
       molecule: infrastructural
       concentration: true
-
-\
