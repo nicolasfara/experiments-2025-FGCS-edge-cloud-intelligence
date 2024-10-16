@@ -94,32 +94,21 @@ class DQNTrainer:
             return 0
         self.model.train()
         self.optimizer.zero_grad()
-        print(f"BATCH SIZE {batch_size}")
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
         if ticks == 0:
             self.model = to_hetero(self.model, obs.metadata(), aggr='sum')
             self.target_model = to_hetero(self.target_model, obs.metadata(), aggr='sum')
-        values = self.model(obs.x_dict, obs.edge_index_dict)['application']#
-        nv = values.gather(1, actions.unsqueeze(1))
-        print(actions)
-        print(actions.unsqueeze(1))
-        print("DIOCANEDIOCANE")
-        nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application']#.max(dim=1)[0].detach()
-        print(values.size())
-        print(values)
-        print(nv)
-        print(nv.size())
-        # print(nextValues)
-        # print(nextValues.size())
+        values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
+        nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
         targetValues = rewards + gamma * nextValues
         loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_value_(model.parameters(), 1)
+        # torch.nn.utils.clip_grad_value_(model.parameters(), 1)
         self.optimizer.step()
 
-        if ticks % update_target_every == 0:
-            self.target_model.load_state_dict(self.model.state_dict())
+        # if ticks % update_target_every == 0:
+        #     self.target_model.load_state_dict(self.model.state_dict())
         return loss.item()
 
 
@@ -161,6 +150,6 @@ if __name__ == '__main__':
     # Checks learning step
     trainer = DQNTrainer(8)
     for i in range(10):
-        trainer.add_experience(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+        trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
     trainer.train_step_dqn(batch_size=5, ticks=0, gamma=0.99, update_target_every=10)
     
