@@ -22,7 +22,7 @@ environment:
   parameters: [ ]
   global-programs:
     - time-distribution: 1
-      type: BasicGraphBuilderReaction
+      type: GlobalLearningWithGraph
       parameters: [*seed]
 
 deployments:

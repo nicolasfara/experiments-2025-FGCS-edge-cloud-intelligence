@@ -54,21 +54,23 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val featureAppToInfra = toTorchTensor(
       adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
     )
-    val graph = rlUtils.create_graph(
-      featuresApplication,
-      featuresInfrastructural,
-      pyAdjacencyAppToApp,
-      pyAdjacencyInfraToInfra,
-      pyAdjacencyAppToInfra,
-      featureAppToApp,
-      featureInfraToInfra,
-      featureAppToInfra,
+    handleGraph(
+      rlUtils.create_graph(
+        featuresApplication,
+        featuresInfrastructural,
+        pyAdjacencyAppToApp,
+        pyAdjacencyInfraToInfra,
+        pyAdjacencyAppToInfra,
+        featureAppToApp,
+        featureInfraToInfra,
+        featureAppToInfra,
+      ),
     )
   }
 
   protected def getNodeFeature(node: Node[T]): Vector
   protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector
-
+  protected def handleGraph(graph: py.Any): Unit
   private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
     neighbors.filter(neigh => nodes.contains(neigh))
   }
