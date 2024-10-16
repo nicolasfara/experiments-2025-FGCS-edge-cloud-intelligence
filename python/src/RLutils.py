@@ -53,9 +53,9 @@ class GraphReplayBuffer:
         return len(self.buffer)
 
 class GCN(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
-        self.conv1 = GATConv(input_dim, hidden_dim, add_self_loops=False, bias=True)
+        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)
         self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
@@ -75,11 +75,10 @@ class GCN(torch.nn.Module):
         return x
 
 class DQNTrainer:
-    def __init__(self, input_size, output_size):
-        self.n_input = input_size
+    def __init__(self, output_size):
         self.n_output = output_size
         self.model = GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
-        self.target_model = GCN(input_dim=self.n_input, hidden_dim=32, output_dim=self.n_output)
+        self.target_model = GCN(hidden_dim=32, output_dim=self.n_output)
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
         self.replay_buffer = GraphReplayBuffer(6000)
@@ -87,15 +86,18 @@ class DQNTrainer:
         self.episode_losses = []
         self.rewards_buffer = []
 
-    def train_step_dqn(self, batch_size, model, target_model, ticks, gamma=0.99, update_target_every=10):
+    def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
+        self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
+
+    def train_step_dqn(self, batch_size, ticks, gamma=0.99, update_target_every=10):
         if len(self.replay_buffer) < batch_size:
             return 0
-        model.train()
+        self.model.train()
         self.optimizer.zero_grad()
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
-
-        values = model(obs).gather(1, actions.unsqueeze(1))
-        nextValues = target_model(nextObs).max(dim=1)[0].detach()
+        print(obs)
+        values = self.model(obs).gather(1, actions.unsqueeze(1))
+        nextValues = self.target_model(nextObs).max(dim=1)[0].detach()
         targetValues = rewards + gamma * nextValues
         loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
         self.optimizer.zero_grad()
@@ -104,7 +106,7 @@ class DQNTrainer:
         self.optimizer.step()
 
         if ticks % update_target_every == 0:
-            target_model.load_state_dict(model.state_dict())
+            self.target_model.load_state_dict(self.model.state_dict())
         return loss.item()
 
 
@@ -113,7 +115,7 @@ if __name__ == '__main__':
 
     graph = create_graph(
         app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0, 1.0]]),
-        infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+        infrastructural_features=torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
         edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
         edges_app_to_app=torch.tensor([[0], [1]]),
         edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
@@ -133,11 +135,19 @@ if __name__ == '__main__':
         edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
     )
 
-    # replay_buffer = GraphReplayBuffer(5)
-    # replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
-    # replay_buffer.push(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+    print('---------------------------------- Checking GCN ----------------------------------')
 
-    model = GCN(input_dim=2, hidden_dim=32, output_dim=8)
+    # Checks that the GCN is correctly created
+    model = GCN(input_dim=3, hidden_dim=32, output_dim=8)
     model = to_hetero(model, graph.metadata(), aggr='sum')
     output = model(graph.x_dict, graph.edge_index_dict)
     print(output)
+    print(graph)
+
+    print('-------------------------------- Checking Learning --------------------------------')
+    # Checks learning step
+    trainer = DQNTrainer(2, 8)
+    for i in range(10):
+        trainer.add_experience(graph, torch.tensor([1, 2]), torch.tensor([1.0]), graph2)
+    trainer.train_step_dqn(batch_size=5, ticks=1, gamma=0.99, update_target_every=10)
+    
