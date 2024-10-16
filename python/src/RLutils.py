@@ -76,15 +76,12 @@ class GCN(torch.nn.Module):
 
 class DQNTrainer:
     def __init__(self, output_size):
-        self.n_output = output_size
-        self.model = GCN(hidden_dim=32, output_dim=self.n_output)
-        self.target_model = GCN(hidden_dim=32, output_dim=self.n_output)
+        self.output_size = output_size
+        self.model = GCN(hidden_dim=32, output_dim=output_size)
+        self.target_model = GCN(hidden_dim=32, output_dim=output_size)
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
         self.replay_buffer = GraphReplayBuffer(6000)
-        self.episode_rewards = []
-        self.episode_losses = []
-        self.rewards_buffer = []
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
@@ -96,19 +93,22 @@ class DQNTrainer:
         self.optimizer.zero_grad()
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
         if ticks == 0:
-            self.model = to_hetero(self.model, obs.metadata(), aggr='sum')
-            self.target_model = to_hetero(self.target_model, obs.metadata(), aggr='sum')
+            metadata = obs.metadata()
+            self.model = to_hetero(self.model, metadata, aggr='sum')
+            self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
         values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
         nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
         targetValues = rewards + gamma * nextValues
         loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
         self.optimizer.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_value_(model.parameters(), 1)
+        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
         self.optimizer.step()
 
-        # if ticks % update_target_every == 0:
-        #     self.target_model.load_state_dict(self.model.state_dict())
+        if ticks % update_target_every == 0:
+            self.target_model = GCN(hidden_dim=32, output_dim=self.output_size)
+            self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
+            self.target_model.load_state_dict(self.model.state_dict())
         return loss.item()
 
 
