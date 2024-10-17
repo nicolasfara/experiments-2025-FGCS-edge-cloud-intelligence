@@ -32,7 +32,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   private implicit def toPythonCollection[K: Reader: Writer](collection: Seq[K]): py.Any = collection.toPythonProxy
   private implicit def toPythonCollectionNested[K: Reader: Writer](collection: Seq[Seq[K]]): py.Any = collection.toPythonProxy
 
-  override protected def executeBeforeUpdateDistribution(): Unit = {
+  override protected def executeBeforeUpdateDistribution(): Unit = handleGraph(createGraph())
+
+  private def createGraph(): py.Any = {
     val infrastructuralNodes = nodes
       .filter(n => n.contains(Molecules.infrastructural))
     val applicationNodes = nodes
@@ -54,17 +56,15 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val featureAppToInfra = toTorchTensor(
       adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
     )
-    handleGraph(
-      rlUtils.create_graph(
-        featuresApplication,
-        featuresInfrastructural,
-        pyAdjacencyAppToApp,
-        pyAdjacencyInfraToInfra,
-        pyAdjacencyAppToInfra,
-        featureAppToApp,
-        featureInfraToInfra,
-        featureAppToInfra,
-      ),
+    rlUtils.create_graph(
+      featuresApplication,
+      featuresInfrastructural,
+      pyAdjacencyAppToApp,
+      pyAdjacencyInfraToInfra,
+      pyAdjacencyAppToInfra,
+      featureAppToApp,
+      featureInfraToInfra,
+      featureAppToInfra,
     )
   }
 
