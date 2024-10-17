@@ -117,6 +117,7 @@ class DQNTrainer:
 
         if self.ticks % update_target_every == 0:
             del self.target_model
+            metadata = obs.metadata()
             self.target_model = GCN(hidden_dim=32, output_dim=self.output_size)
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
             self.target_model.load_state_dict(self.model.state_dict())
@@ -125,6 +126,14 @@ class DQNTrainer:
 
     def model_snapshot(self, dir, iter):
         torch.save(self.model, f'{dir}/network-iteration-{iter}')
+
+class BatteryRewardFunction:
+    def compute(self, observation, next_observation):
+        """
+            It must return a list of float values, each value represents the reward
+            for the corresponding application node
+        """
+        pass
 
 # Just a quick test
 if __name__ == '__main__':
@@ -157,6 +166,7 @@ if __name__ == '__main__':
     model = GCN(hidden_dim=32, output_dim=8)
     model = to_hetero(model, graph.metadata(), aggr='sum')
     output = model(graph.x_dict, graph.edge_index_dict)
+    print(output['application'])
     print('OK!')
 
     print('-------------------------------- Checking Learning -------------------------------')
@@ -164,7 +174,8 @@ if __name__ == '__main__':
     trainer = DQNTrainer(8)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
-    trainer.train_step_dqn(batch_size=5, diocane=graph, gamma=0.99, update_target_every=10)
+    trainer.toHetero(graph)
+    trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
     print(trainer.select_action(graph, 0.0))
     print('OK!')
     

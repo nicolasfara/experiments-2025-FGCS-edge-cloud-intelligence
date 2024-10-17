@@ -34,11 +34,14 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   override protected def executeBeforeUpdateDistribution(): Unit = handleGraph(createGraph())
 
-  private def createGraph(): py.Any = {
-    val infrastructuralNodes = nodes
-      .filter(n => n.contains(Molecules.infrastructural))
-    val applicationNodes = nodes
-      .filterNot(n => n.contains(Molecules.infrastructural))
+  protected lazy val infrastructuralNodes: Seq[Node[T]] = nodes
+    .filter(n => n.contains(Molecules.infrastructural))
+    .sortBy(node => node.getId)
+  protected lazy val applicationNodes: Seq[Node[T]] = nodes
+    .filterNot(n => n.contains(Molecules.infrastructural))
+    .sortBy(node => node.getId)
+
+  protected def createGraph(): py.Any = {
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
@@ -70,7 +73,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected def getNodeFeature(node: Node[T]): Vector
   protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector
-  protected def handleGraph(graph: py.Any): Unit
+  protected def handleGraph(graph: py.Dynamic): Unit
   private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
     neighbors.filter(neigh => nodes.contains(neigh))
   }

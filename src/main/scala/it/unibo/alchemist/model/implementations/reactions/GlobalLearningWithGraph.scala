@@ -3,7 +3,9 @@ package it.unibo.alchemist.model.implementations.reactions
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model._
 import it.unibo.alchemist.utils.Molecules
+import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import me.shadaj.scalapy.py
+import me.shadaj.scalapy.py.SeqConverters
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
@@ -12,7 +14,13 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
-  var oldGraph: Option[py.Any] = None
+
+  private var oldGraph: Option[py.Dynamic] = None
+  private var oldActions: Option[py.Dynamic] = None
+
+  private val edgeServerSize = 5
+  private val rewardFunction = rlUtils.BatteryRewardFunction()
+
   lazy val learner: py.Dynamic = environment
     .getLayer(new SimpleMolecule(Molecules.learner))
     .asInstanceOf[LearningLayer[P]]
@@ -28,34 +36,43 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     Vector(Seq(distance))
   }
 
-  override protected def handleGraph(graph: py.Any): Unit = {
-    val rewards = environment.getNodes.asScala.map { node =>
-      val reward = node.getConcentration(new SimpleMolecule("reward")) // or something else??
+  override protected def handleGraph(observation: py.Dynamic): Unit = {
+
+    val actions = learner.select_action(observation, 0.05) // TODO inject epsilon from outside
+
+    actions
+      .tolist().as[List[Int]]
+      .zipWithIndex
+      .foreach { case (action, index) =>
+        // TODO - starting from the index of the action find the map C1 -> where, C2 -> where, ..., Cn -> where
+      }
+
+    (oldGraph, oldActions) match {
+      case (Some(previousObs), Some(previousActions)) =>
+        val rewards = computeRewards(previousObs, observation)
+        learner.add_experience(previousObs, previousActions, rewards, observation)
+        learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10)
+      case _ =>
     }
-    // rewards to tensors
-    val tensorRewards = rewards // todo convert to tensor
-    val actions = learner.select_action(graph, 0.05) // TODO 0.1 need to be injected from the outside
-    // globally perform action
-    // => put some data on molecules
-    /**
-     * Alternative 1:
-     * components {C_0, C_1}
-     * action space {C_O_offloading, C_0_onloading, C_1_offloading, C_1_onloading}
-     * |action space| = |components| * 2
-     * nodes [0, 1, 2, 3, 4]
-     * actions [1, 0, 2, 1]
-     * actions_semantics [C_0_onloading, C_0_offloading, C_0_offloading, C_0_onloading]
-     * Alternative 2:
-     * components {C_0, C_1}
-     * Edge Servers {A, ES_0, ES_1}
-     * action space { C_0_offloading_A, C_0_offloading_ES_0, C_0_offloading_ES_1, C_1_offloading_A, C_1_offloading_ES_0, C_1_offloading_ES_1}
-     * |action space| = (|Edge Servers| + 1) ** |components|
-     */
-    oldGraph match {
-      case Some(old) =>
-        // learner.add_experience(old, actions, tensorRewards, graph)
-        learner.train_step_dqn()
-    }
+
+    oldGraph = Some(observation)
+    oldActions = Some(actions)
+  }
+
+  private def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
+    val rewards = rewardFunction.compute(obs, nextObs).tolist().as[List[Int]]
+    rewards // TODO - for data exporting, check if we must export also something else
+      .zipWithIndex
+      .foreach { case (reward, index) =>
+        applicationNodes(index).setConcentration(new SimpleMolecule(Molecules.reward), reward.asInstanceOf[T])
+      }
+    torch.Tensor(rewards.toPythonProxy)
   }
 
 }
+
+/**
+ * For each component we have a set of possible actions C0_actions = {C0_A, C0_ES1, ..., C0_ESn}
+ * The complete action space is the cartesian product {(C0_A,C1_A), (C0_A, C1_ES1), ...}
+ * The cardinality of the action space is |C0_actions| * ... * |Ck_actions|
+ * */
