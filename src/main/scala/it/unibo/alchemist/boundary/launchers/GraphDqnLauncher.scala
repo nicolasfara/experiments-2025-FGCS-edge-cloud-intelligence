@@ -6,9 +6,7 @@ import it.unibo.alchemist.core.Simulation
 import it.unibo.alchemist.model.{Layer, LearningLayer}
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.PythonModules.rlUtils
-import me.shadaj.scalapy.py
 import org.slf4j.{Logger, LoggerFactory}
-
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
@@ -22,25 +20,23 @@ import scala.util.{Failure, Success}
   * @param seedName
   * @param globalBufferSize
   */
-abstract class GraphDqnLauncher(
+class GraphDqnLauncher(
     val batch: java.util.ArrayList[String],
     val globalRounds: Int,
     val seedName: String,
     val globalBufferSize: Int,
+    val actionSpaceSize: Int
 ) extends Launcher {
 
   type ExperienceBuffer
   private val logger: Logger = LoggerFactory.getLogger(this.getClass.getName)
   private val errorQueue = new ConcurrentLinkedQueue[Throwable]()
   implicit private val executionContext: ExecutionContext = ExecutionContext.global
+  private val learner = rlUtils.DQNTrainer(actionSpaceSize)
+
   override def launch(loader: Loader): Unit = {
-    val modules = 2 // Number of modules
-    val totalAction = modules * 2 // Number of actions
-    val learner = rlUtils.DQNTrainer(totalAction)
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    initializeNetwork()
-
     Range.inclusive(1, globalRounds).foreach { iter =>
       logger.info(s"Starting Global Round: $iter")
       logger.info(s"Number of simulations: ${prod.size}")
@@ -57,7 +53,6 @@ abstract class GraphDqnLauncher(
         }
     }
 
-    saveNetworks()
     println("[DEBUG] finished ")
   }
 
@@ -104,17 +99,5 @@ abstract class GraphDqnLauncher(
     }
     Await.result(future, Duration.Inf)
   }
-
-  protected def neuralNetworkInjection(simulation: Simulation[Any, Nothing], iteration: Int): Unit
-
-  protected def initializeNetwork(): Unit
-
-  protected def saveNetworks(): Unit
-
-  protected def improvePolicy(simulationsExperience: Seq[ExperienceBuffer], iteration: Int): Unit
-
-  protected def loadNetworks(iteration: Int): (py.Dynamic, py.Dynamic)
-
-  protected def cleanAfterRound(simulations: List[Simulation[Any, Nothing]]): Unit
 
 }
