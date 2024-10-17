@@ -29,8 +29,7 @@ class GraphDqnLauncher(
     val globalBufferSize: Int,
     val actionSpaceSize: Int
 ) extends Launcher {
-
-  type ExperienceBuffer
+  
   private val logger: Logger = LoggerFactory.getLogger(this.getClass.getName)
   private val errorQueue = new ConcurrentLinkedQueue[Throwable]()
   implicit private val executionContext: ExecutionContext = ExecutionContext.global
