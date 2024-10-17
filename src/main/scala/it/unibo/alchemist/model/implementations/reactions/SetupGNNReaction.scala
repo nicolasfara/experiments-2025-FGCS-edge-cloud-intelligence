@@ -1,7 +1,7 @@
 package it.unibo.alchemist.model.implementations.reactions
 
-import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model.{Environment, LearningLayer, Node, Position, TimeDistribution}
+import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.Molecules
 import me.shadaj.scalapy.py
 
