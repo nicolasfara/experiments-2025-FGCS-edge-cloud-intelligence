@@ -56,19 +56,18 @@ class GCN(torch.nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
         self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)
-        self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
-        self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
+        # self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
+        # self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.lin2 = torch.nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, edge_index):
-        # x, edge_index = data.x, data.edge_index
         x = self.conv1(x, edge_index)
         x = torch.relu(x)
-        x = self.conv2(x, edge_index)
-        x = torch.relu(x)
-        x = self.conv3(x, edge_index)
-        x = torch.relu(x)
+        # x = self.conv2(x, edge_index)
+        # x = torch.relu(x)
+        # x = self.conv3(x, edge_index)
+        # x = torch.relu(x)
         x = self.lin1(x)
         x = torch.relu(x)
         x = self.lin2(x)
@@ -123,6 +122,8 @@ class DQNTrainer:
         self.ticks += 1
         return loss.item()
 
+    def model_snapshot(self, dir, iter):
+        torch.save(self.model, f'{dir}/network-iteration-{iter}')
 
 # Just a quick test
 if __name__ == '__main__':
@@ -163,5 +164,6 @@ if __name__ == '__main__':
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
     trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
+    print(trainer.select_action(graph, 0.0))
     print('OK!')
     
