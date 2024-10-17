@@ -5,8 +5,10 @@ import it.unibo.alchemist.boundary.{Launcher, Loader, Variable}
 import it.unibo.alchemist.core.Simulation
 import it.unibo.alchemist.model.{Layer, LearningLayer}
 import it.unibo.alchemist.model.molecules.SimpleMolecule
+import it.unibo.alchemist.utils.Molecules
 import it.unibo.alchemist.utils.PythonModules.rlUtils
 import org.slf4j.{Logger, LoggerFactory}
+
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
@@ -48,7 +50,7 @@ class GraphDqnLauncher(
           val seed = instance(seedName).asInstanceOf[Double].toLong
           println(s"${Thread.currentThread().getName}")
           val learnerLayer = new LearningLayer(learner)
-          sim.getEnvironment.addLayer(new SimpleMolecule("learner"), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
+          sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
           runSimulationSync(sim, index, instance)
         }
     }

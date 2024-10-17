@@ -2,6 +2,7 @@ package it.unibo.alchemist.model.implementations.reactions
 
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model._
+import it.unibo.alchemist.utils.Molecules
 import me.shadaj.scalapy.py
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -12,7 +13,11 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     distribution: TimeDistribution[T],
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
   var oldGraph: Option[py.Any] = None
-  lazy val learner = environment.getLayer(new SimpleMolecule("learner")).asInstanceOf[LearningLayer[P]].getValue(environment.makePosition(0, 0))
+  lazy val learner: py.Dynamic = environment
+    .getLayer(new SimpleMolecule(Molecules.learner))
+    .asInstanceOf[LearningLayer[P]]
+    .getValue(environment.makePosition(0, 0))
+
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val position = environment.getPosition(node)
     Vector(Seq(position.getCoordinate(0), position.getCoordinate(0)))
@@ -44,7 +49,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
      * components {C_0, C_1}
      * Edge Servers {A, ES_0, ES_1}
      * action space { C_0_offloading_A, C_0_offloading_ES_0, C_0_offloading_ES_1, C_1_offloading_A, C_1_offloading_ES_0, C_1_offloading_ES_1}
-     * |action space| = (|Edge Servers| + 1) ^ |components|
+     * |action space| = (|Edge Servers| + 1) ** |components|
      */
     oldGraph match {
       case Some(old) =>
