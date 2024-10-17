@@ -94,6 +94,11 @@ class DQNTrainer:
             with torch.no_grad():
                 return self.model(graph_observation.x_dict, graph_observation.edge_index_dict)['application'].max(dim=1)[1]
 
+    def toHetero(self, data):
+        metadata = data.metadata()
+        self.model = to_hetero(self.model, metadata, aggr='sum')
+        self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
+
     def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10):
         if len(self.replay_buffer) < batch_size:
             return 0
@@ -101,10 +106,6 @@ class DQNTrainer:
         self.model.train()
         self.optimizer.zero_grad()
         obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
-        if self.ticks == 0:
-            metadata = obs.metadata()
-            self.model = to_hetero(self.model, metadata, aggr='sum')
-            self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
         values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
         nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
         targetValues = rewards + gamma * nextValues
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     trainer = DQNTrainer(8)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
-    trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
+    trainer.train_step_dqn(batch_size=5, diocane=graph, gamma=0.99, update_target_every=10)
     print(trainer.select_action(graph, 0.0))
     print('OK!')
     
