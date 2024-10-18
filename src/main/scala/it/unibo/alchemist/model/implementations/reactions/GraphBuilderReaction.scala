@@ -41,7 +41,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     .filterNot(n => n.contains(Molecules.infrastructural))
     .sortBy(node => node.getId)
 
-  protected def createGraph(): py.Any = {
+  protected def createGraph(): py.Dynamic = {
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
