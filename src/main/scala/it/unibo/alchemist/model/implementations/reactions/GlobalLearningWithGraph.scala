@@ -33,6 +33,8 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     .asInstanceOf[LearningLayer[P]]
     .getValue(environment.makePosition(0, 0))
 
+
+  // TODO - set features correctly
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val position = environment.getPosition(node)
     Vector(Seq(position.getCoordinate(0), position.getCoordinate(0)))
@@ -81,7 +83,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   private def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute(obs, nextObs).tolist().as[List[Int]]
+    val rewards = rewardFunction.compute_threshold(obs, nextObs).tolist().as[List[Int]]
     rewards // TODO - for data exporting, check if we must export also something else
       .zipWithIndex
       .foreach { case (reward, index) =>
@@ -91,9 +93,3 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
 }
-
-/**
- * For each component we have a set of possible actions C0_actions = {C0_A, C0_ES1, ..., C0_ESn}
- * The complete action space is the cartesian product {(C0_A,C1_A), (C0_A, C1_ES1), ...}
- * The cardinality of the action space is |C0_actions| * ... * |Ck_actions|
- * */
