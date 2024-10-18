@@ -18,10 +18,8 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
 
   // TODO - check that nodes have the right molecule inside (application/infrastructural)
 
-  // TODO - to parameters
-  private val edgeServerSize = 5
-  private val components = Seq(Component("it.unibo.Gradient"), Component("it.unibo.LeaderElection")) // TODO - add real components
-
+  private val edgeServerSize = infrastructuralNodes.size
+  private val components = getComponents
 
   private var oldGraph: Option[py.Dynamic] = None
   private var oldActions: Option[py.Dynamic] = None
@@ -33,11 +31,9 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     .asInstanceOf[LearningLayer[P]]
     .getValue(environment.makePosition(0, 0))
 
-
-  // TODO - set features correctly
   override protected def getNodeFeature(node: Node[T]): Vector = {
-    val position = environment.getPosition(node)
-    Vector(Seq(position.getCoordinate(0), position.getCoordinate(0)))
+    val batteryLevel = BatteryEquippedDevice.getBatteryCapacityPercentage(node)
+    Vector(Seq(batteryLevel))
   }
 
   override protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector = {
@@ -92,4 +88,15 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     torch.Tensor(rewards.toPythonProxy)
   }
 
+  private def getComponents: Seq[Component] =
+    applicationNodes.head
+      .getProperties
+      .asScala
+      .filter(_.isInstanceOf[AllocatorProperty[T, P]])
+      .map(_.asInstanceOf[AllocatorProperty[T, P]])
+      .head
+      .getComponentsAllocation
+      .keys
+      .map(id => Component(id))
+      .toSeq
 }
