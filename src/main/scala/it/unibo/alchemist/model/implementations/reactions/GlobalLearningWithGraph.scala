@@ -4,6 +4,7 @@ import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model._
 import it.unibo.alchemist.utils.Molecules
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
+import learning.model.{ActionSpace, Component, EdgeServer, MySelf, PairComponentDevice}
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters
 
@@ -15,13 +16,19 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     distribution: TimeDistribution[T],
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
+  // TODO - check that nodes have the right molecule inside (application/infrastructural)
+
+  // TODO - to parameters
+  private val edgeServerSize = 5
+  private val components = Seq(Component("it.unibo.Gradient"), Component("it.unibo.LeaderElection")) // TODO - add real components
+
+
   private var oldGraph: Option[py.Dynamic] = None
   private var oldActions: Option[py.Dynamic] = None
-
-  private val edgeServerSize = 5
   private val rewardFunction = rlUtils.BatteryRewardFunction()
+  private val actionSpace = ActionSpace(components, edgeServerSize)
 
-  lazy val learner: py.Dynamic = environment
+  private lazy val learner: py.Dynamic = environment
     .getLayer(new SimpleMolecule(Molecules.learner))
     .asInstanceOf[LearningLayer[P]]
     .getValue(environment.makePosition(0, 0))
@@ -43,8 +50,22 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     actions
       .tolist().as[List[Int]]
       .zipWithIndex
-      .foreach { case (action, index) =>
-        // TODO - starting from the index of the action find the map C1 -> where, C2 -> where, ..., Cn -> where
+      .foreach { case (actionIndex, nodeIndex) =>
+        val node = applicationNodes(nodeIndex)
+        val newComponentsAllocation = actionSpace.actions(actionIndex)
+          .map { case PairComponentDevice(component, device) =>
+            val deviceID = device match {
+              case MySelf() => node.getId
+              case EdgeServer(id) => id
+            }
+            component.id -> deviceID
+          }
+          .toMap
+        node.getProperties.asScala
+          .filter(_.isInstanceOf[AllocatorProperty[T, P]])
+          .map(_.asInstanceOf[AllocatorProperty[T, P]])
+          .head
+          .setComponentsAllocation(newComponentsAllocation)
       }
 
     (oldGraph, oldActions) match {
