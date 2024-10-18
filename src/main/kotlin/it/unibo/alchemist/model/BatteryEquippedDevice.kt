@@ -114,7 +114,11 @@ class BatteryEquippedDevice<T, P : Position<P>> @JvmOverloads constructor(
     companion object {
         private val BATTERY_CAPACITY_MOLECULE = SimpleMolecule("CurrentBatteryCapacity")
         private val BATTERY_CAPACITY_PERCENTAGE_MOLECULE = SimpleMolecule("CurrentBatteryPercentage")
-        fun <T> Node<T>.getBatteryCapacity(): Double = getConcentration(BATTERY_CAPACITY_MOLECULE) as Double
-        fun <T> Node<T>.getBatteryCapacityPercentage(): Double = getConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE) as Double
+        @JvmStatic
+        fun <T> getBatteryCapacity(node: Node<T>): Double = node.getConcentration(BATTERY_CAPACITY_MOLECULE) as Double
+        @JvmStatic
+        fun <T> getBatteryCapacityPercentage(node: Node<T>): Double = node.getConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE) as Double
+//        fun <T> Node<T>.getBatteryCapacity(): Double = getConcentration(BATTERY_CAPACITY_MOLECULE) as Double
+//        fun <T> Node<T>.getBatteryCapacityPercentage(): Double = getConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE) as Double
     }
 }
