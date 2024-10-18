@@ -128,18 +128,22 @@ class DQNTrainer:
         torch.save(self.model, f'{dir}/network-iteration-{iter}')
 
 class BatteryRewardFunction:
-    def compute(self, observation, next_observation):
-        """
-            It must return a list of float values, each value represents the reward
-            for the corresponding application node
-        """
-        pass
+    def compute_difference(self, observation, next_observation):
+        battery_status_t1 = observation["application"].x[:, 0]
+        battery_status_t2 = next_observation["application"].x[:, 0]
+        rewards = battery_status_t2 - battery_status_t1
+        return rewards
+
+    def compute_threshold(self, observation, next_observation):
+        battery_status = next_observation["application"].x[:, 0]
+        rewards = torch.where(battery_status > 50, torch.tensor(0.), torch.tensor(-10.))
+        return rewards
 
 # Just a quick test
 if __name__ == '__main__':
 
     graph = create_graph(
-        app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0, 1.0]]),
+        app_features=torch.tensor([[100.0, 2.0], [100.0, 1.0], [3.0, 1.0]]),
         infrastructural_features=torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
         edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
         edges_app_to_app=torch.tensor([[0], [1]]),
@@ -150,7 +154,7 @@ if __name__ == '__main__':
     )
 
     graph2 = create_graph(
-        app_features=torch.tensor([[1.0, 2.0], [2.0, 1.0], [3.0, 1.0]]),
+        app_features=torch.tensor([[100.0, 2.0], [70.0, 1.0], [30.0, 1.0]]),
         infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
         edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
         edges_app_to_app=torch.tensor([[0], [1]]),
@@ -178,4 +182,10 @@ if __name__ == '__main__':
     trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
     print(trainer.select_action(graph, 0.0))
     print('OK!')
-    
+
+    print('-------------------------------- Checking RF ---------------------------------')
+    reward_function = BatteryRewardFunction()
+    diff = reward_function.compute_difference(graph, graph2)
+    th = reward_function.compute_threshold(graph, graph2)
+    print(diff)
+    print(th)
