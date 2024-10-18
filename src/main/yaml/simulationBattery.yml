@@ -1,0 +1,115 @@
+incarnation: surrogatescafi
+
+variables:
+  seed: &seed
+    min: 0
+    max: 1
+    step: 1
+    default: 0
+  nodeCount: &nodeCount
+    type: ArbitraryVariable
+    parameters: [50, [50, 100, 200]]
+  #------------------------------------------------------------------
+  moveFrequency: &moveFrequency
+    language: scala
+    formula: 1.0 / 2
+  gradientProgram: &gradientProgram
+    language: scala
+    formula: "\"it.unibo.alchemist.Gradient\""
+  greaterDistance: &greaterDistance
+    language: scala
+    formula: "\"it.unibo.alchemist.GreaterDistance\""
+  programDag: &programDag
+    language: scala
+    formula: Map(gradientProgram -> Set(greaterDistance))
+  componentsInstructions: &componentsInstructions
+    language: kotlin
+    formula: |
+      mapOf(gradientProgram to 1_000_000L, greaterDistance to 1_500_000L)
+
+seeds:
+  scenario: *seed
+  simulation: *seed
+
+launcher:
+  type: GraphDqnLauncher
+  parameters:
+    batch: [10, "seed", 6000, 36] # globalRounds, seedName, global buffer size, action space cardinality
+
+network-model:
+  type: ConnectWithinDistancesEdge
+  parameters: [2500]
+
+_constants:
+  retentionTime: &retentionTime 25.0
+
+_programs:
+  - program: &surrogateGradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunSurrogateScafiProgram
+            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+      - program: sendSurrogate
+  - program: &gradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+      - program: send
+  - program: &greater
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *greaterDistance, *retentionTime, *programDag ]
+      - program: send
+  - program: &runtime
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: ModularizationRuntime
+  - program: &batteryDevice
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: BatteryEquippedDevice
+            parameters: [ 4200.0, 1, *componentsInstructions ] # Battery capacity, EPI (nJ), components instructions
+
+environment:
+  type: Continuous2DEnvironment
+  parameters: []
+
+deployments:
+  - type: Grid
+    parameters: [-5, -5, 5, 5, 1,1, 0.1, 0.1]
+    programs:
+      - *gradient
+      - *greater
+      - *runtime
+      - *batteryDevice
+    properties:
+      - type: AllocatorProperty
+        parameters: [ *programDag ]
+#    contents:
+#  - type: SpecificPositions # Edge Servers
+#    parameters: [
+#      [ 48.2152226, 16.3816613 ],
+#      [ 48.2366507, 16.3838339 ],
+#      [ 48.2146077, 16.3485146 ],
+#      [ 48.2055562, 16.3778687 ],
+#      [ 48.1924837, 16.3458967 ],
+#      #      [ 48.1879776, 16.3616896 ],
+#      #      [ 48.1728973, 16.3443303 ],
+#      #      [ 48.2568980, 16.4036303 ],
+#    ]
+#    programs:
+#      - *surrogateGradient
+#    contents:
+#      molecule: infrastructuralDevice
+#      concentration: true
+
+terminate:
+  type: AfterTime
+  parameters: 1500

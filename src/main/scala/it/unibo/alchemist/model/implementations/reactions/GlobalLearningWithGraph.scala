@@ -15,7 +15,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
-  
+
   private val edgeServerSize = infrastructuralNodes.size
   private val components = getComponents
 
