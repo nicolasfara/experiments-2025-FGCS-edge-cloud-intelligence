@@ -15,9 +15,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
-
-  // TODO - check that nodes have the right molecule inside (application/infrastructural)
-
+  
   private val edgeServerSize = infrastructuralNodes.size
   private val components = getComponents
 
@@ -33,7 +31,11 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val batteryLevel = BatteryEquippedDevice.getBatteryCapacityPercentage(node)
-    Vector(Seq(batteryLevel))
+    val componentsAllocation = getAllocator(node)
+      .getComponentsAllocation
+    val totalComponents = componentsAllocation.size
+    val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
+    Vector(Seq(batteryLevel, (localComponents / totalComponents).toDouble))
   }
 
   override protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector = {
@@ -59,10 +61,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
             component.id -> deviceID
           }
           .toMap
-        node.getProperties.asScala
-          .filter(_.isInstanceOf[AllocatorProperty[T, P]])
-          .map(_.asInstanceOf[AllocatorProperty[T, P]])
-          .head
+        getAllocator(node)
           .setComponentsAllocation(newComponentsAllocation)
       }
 
@@ -89,14 +88,16 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   private def getComponents: Seq[Component] =
-    applicationNodes.head
-      .getProperties
-      .asScala
-      .filter(_.isInstanceOf[AllocatorProperty[T, P]])
-      .map(_.asInstanceOf[AllocatorProperty[T, P]])
-      .head
+    getAllocator(applicationNodes.head)
       .getComponentsAllocation
       .keys
       .map(id => Component(id))
       .toSeq
+
+  private def getAllocator(node: Node[T]) = {
+    node.getProperties.asScala
+      .filter(_.isInstanceOf[AllocatorProperty[T, P]])
+      .map(_.asInstanceOf[AllocatorProperty[T, P]])
+      .head
+  }
 }
