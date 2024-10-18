@@ -30,7 +30,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     .getValue(environment.makePosition(0, 0))
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
-    val batteryLevel = BatteryEquippedDevice.getBatteryCapacityPercentage(node)
+    val batteryLevel = BatteryEquippedDevice.getBatteryCapacity(node)
     val componentsAllocation = getAllocator(node)
       .getComponentsAllocation
     val totalComponents = componentsAllocation.size
