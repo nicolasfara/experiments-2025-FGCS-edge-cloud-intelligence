@@ -1,17 +1,17 @@
 package learning.model
 
-case class Component(id: Int)
-case class Device(name: String)
+case class Component(id: String)
+sealed trait Device
+case class MySelf() extends Device
+case class EdgeServer(id: Int) extends Device
+
 case class PairComponentDevice(component: Component, device: Device)
 
-case class ActionSpace(componentsCardinality: Int, devicesCardinality: Int){
-
-  private val components = Range(0, componentsCardinality)
-    .map(i => Component(i))
+case class ActionSpace(components: Seq[Component], devicesCardinality: Int){
 
   private val devices = Range(0, devicesCardinality)
-    .map(i => Device(s"Device-${i}"))
-    .prepended(Device("MySelf"))
+    .map(i => EdgeServer(i))
+    .prepended(MySelf())
 
   private val pairs = components.map(c => devices.map(d => PairComponentDevice(c, d)))
 
