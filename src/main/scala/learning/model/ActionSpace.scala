@@ -1,13 +1,13 @@
 package learning.model
 
-case class Component(name: String)
+case class Component(id: Int)
 case class Device(name: String)
 case class PairComponentDevice(component: Component, device: Device)
 
 case class ActionSpace(componentsCardinality: Int, devicesCardinality: Int){
 
   private val components = Range(0, componentsCardinality)
-    .map(i => Component(s"Component-${i}"))
+    .map(i => Component(i))
 
   private val devices = Range(0, devicesCardinality)
     .map(i => Device(s"Device-${i}"))
