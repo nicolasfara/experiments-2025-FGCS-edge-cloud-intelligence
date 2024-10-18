@@ -1,5 +1,11 @@
 package learning.model
 
+/**
+ * For each component we have a set of possible actions C0_actions = {C0_A, C0_ES1, ..., C0_ESn}
+ * The complete action space is the cartesian product {(C0_A,C1_A), (C0_A, C1_ES1), ...}
+ * The cardinality of the action space is |C0_actions| * ... * |Ck_actions|
+ * */
+
 case class Component(id: String)
 sealed trait Device
 case class MySelf() extends Device
