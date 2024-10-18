@@ -64,25 +64,25 @@ class BatteryEquippedDevice[T, P <: Position[P]](
         node.setConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryCapacityPercentage().asInstanceOf[T])
     }
 
-    def getBatteryCapacity(): Double = currentBatteryCapacity
-    def getBatteryCapacityPercentage(): Double = currentBatteryCapacity / batteryCapacity * 100.0
-    def recharge() {
+    def getBatteryCapacity: Double = currentBatteryCapacity
+    def getBatteryCapacityPercentage: Double = currentBatteryCapacity / batteryCapacity * 100.0
+    def recharge: Unit = {
         isRecharging = true
     }
-    def removeComponentExecution(component: String) {
+    def removeComponentExecution(component: String): Unit = {
         softwareComponentsInstructions.get(component) match {
             case Some(_) => actualComponents = actualComponents - component
             case None => throw new IllegalStateException(s"Component $component not found in ${softwareComponentsInstructions.keys}")
         }
     }
-    def addComponentExecution(component: String) {
+    def addComponentExecution(component: String): Unit = {
         softwareComponentsInstructions.get(component) match {
             case Some(instructions) => actualComponents = actualComponents + (component -> instructions)
             case None => throw new IllegalStateException(s"Component $component not found in ${softwareComponentsInstructions.keys}")
         }
     }
 
-    private def dischargeLogic(deltaTime: Double) {
+    private def dischargeLogic(deltaTime: Double): Unit = {
         val epiInJoule = deviceEnergyPerInstruction * 1e-9 // Convert nJ to J
         val componentsConsumedEnergy = actualComponents
           .map { case (component, instructions) =>
@@ -99,7 +99,7 @@ class BatteryEquippedDevice[T, P <: Position[P]](
         currentBatteryCapacity = (currentBatteryCapacity - batteryConsumedCurrent).max(0.0)
     }
 
-    private def rechargeLogic(deltaTime: Double) {
+    private def rechargeLogic(deltaTime: Double): Unit = {
         val rechargeCurrent = batteryCapacity * rechargeRate * deltaTime / 3600.0 // mAh
         currentBatteryCapacity = (currentBatteryCapacity + rechargeCurrent).min(batteryCapacity)
         if (currentBatteryCapacity == batteryCapacity) {
