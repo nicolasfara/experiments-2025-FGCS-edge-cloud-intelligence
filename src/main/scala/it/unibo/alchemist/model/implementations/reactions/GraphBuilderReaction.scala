@@ -107,5 +107,4 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       .asScala
       .toList
   }
-
 }
