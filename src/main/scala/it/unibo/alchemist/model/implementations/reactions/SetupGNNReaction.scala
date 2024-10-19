@@ -29,7 +29,7 @@ class SetupGNNReaction [T, P <: Position[P]](
     Vector(Seq(distance))
   }
 
-  override protected def handleGraph(graph: py.Any): Unit = {
+  override protected def handleGraph(graph: py.Dynamic): Unit = {
     learner.toHetero(graph)
   }
 }
