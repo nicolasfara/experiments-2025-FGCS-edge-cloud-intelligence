@@ -27,11 +27,16 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val batteryLevel = BatteryEquippedDevice.getBatteryCapacity(node)
-    val componentsAllocation = getAllocator(node)
-      .getComponentsAllocation
-    val totalComponents = componentsAllocation.size
-    val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
-    Vector(Seq(batteryLevel, (localComponents / totalComponents).toDouble))
+    if(!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
+      val componentsAllocation = getAllocator(node)
+        .getComponentsAllocation
+      val totalComponents = componentsAllocation.size
+      val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
+      Vector(Seq(batteryLevel, (localComponents / totalComponents).toDouble))
+    }
+    else {
+      Vector(Seq(batteryLevel))
+    }
   }
 
   override protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector = {
@@ -83,12 +88,13 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     torch.Tensor(rewards.toPythonProxy)
   }
 
-  private def getComponents: Seq[Component] =
+  private def getComponents: Seq[Component] = {
     getAllocator(applicationNodes.head)
       .getComponentsAllocation
       .keys
       .map(id => Component(id))
       .toSeq
+  }
 
   private def getAllocator(node: Node[T]) = {
     node.getProperties.asScala
