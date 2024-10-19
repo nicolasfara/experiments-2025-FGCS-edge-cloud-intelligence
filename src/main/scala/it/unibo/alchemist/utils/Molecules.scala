@@ -1,7 +1,7 @@
 package it.unibo.alchemist.utils
 
 object Molecules {
-  val infrastructural = "infrastructural"
+  val infrastructural = "infrastructuralDevice"
   val learner = "learner"
   val reward = "reward"
 }
