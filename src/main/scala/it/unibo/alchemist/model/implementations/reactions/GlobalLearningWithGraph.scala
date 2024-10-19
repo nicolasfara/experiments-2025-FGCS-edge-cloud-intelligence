@@ -17,13 +17,13 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     seed: Int
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
-  private val edgeServerSize = infrastructuralNodes.size
-  private val components = getComponents
+  private lazy val edgeServerSize = infrastructuralNodes.size
+  private lazy val components = getComponents
 
   private var oldGraph: Option[py.Dynamic] = None
   private var oldActions: Option[py.Dynamic] = None
   private val rewardFunction = rlUtils.BatteryRewardFunction()
-  private val actionSpace = ActionSpace(components, edgeServerSize)
+  private lazy val actionSpace = ActionSpace(components, edgeServerSize)
 
   private lazy val learner: py.Dynamic = environment
     .getLayer(new SimpleMolecule(Molecules.learner))
