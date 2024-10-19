@@ -14,6 +14,7 @@ import scala.language.implicitConversions
 class GlobalLearningWithGraph[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
+    seed: Int
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val edgeServerSize = infrastructuralNodes.size
@@ -69,7 +70,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
       case (Some(previousObs), Some(previousActions)) =>
         val rewards = computeRewards(previousObs, observation)
         learner.add_experience(previousObs, previousActions, rewards, observation)
-        learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10)
+        learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10, seed=seed)
       case _ =>
     }
 
