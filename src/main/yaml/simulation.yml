@@ -23,9 +23,9 @@ variables:
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
   componentsInstructions: &componentsInstructions
-    language: kotlin
+    language: scala
     formula: |
-      mapOf(gradientProgram to 1_000_000L)
+      Map(gradientProgram -> 1_000_000L)
 
 seeds:
   scenario: *seed
@@ -78,7 +78,7 @@ _programs:
       type: Event
       actions:
         - type: BatteryEquippedDevice
-          parameters: [ 4200.0, 1, *componentsInstructions ] # Battery capacity, EPI (nJ), components instructions
+          parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
   - program: &moveWithTraces
     - time-distribution: *moveFrequency
       type: Event
