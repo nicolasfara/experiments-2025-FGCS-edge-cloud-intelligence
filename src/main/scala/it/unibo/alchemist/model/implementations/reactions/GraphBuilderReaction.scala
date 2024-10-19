@@ -56,15 +56,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
     val featuresApplication = applicationNodes.map(getNodeFeature).map(toTorchTensor)
     val featuresInfrastructural = infrastructuralNodes.map(getNodeFeature).map(toTorchTensor)
-    val featureAppToApp = toTorchTensor(
-      adjacencyAppToApp.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
-    )
-    val featureInfraToInfra = toTorchTensor(
-      adjacencyInfraToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
-    )
-    val featureAppToInfra = toTorchTensor(
-      adjacencyAppToInfra.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
-    )
+    val featureAppToApp = createFeatureTensor(adjacencyAppToApp)
+    val featureInfraToInfra = createFeatureTensor(adjacencyInfraToInfra)
+    val featureAppToInfra = createFeatureTensor(adjacencyAppToInfra)
     rlUtils.create_graph(
       featuresApplication,
       featuresInfrastructural,
@@ -74,6 +68,12 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       featureAppToApp,
       featureInfraToInfra,
       featureAppToInfra,
+    )
+  }
+
+  private def createFeatureTensor(matrix: Matrix): py.Any = {
+    toTorchTensor(
+      matrix.allEdges.map(edge => getEdgeFeature(environment.getNodeByID(edge._1), environment.getNodeByID(edge._2))),
     )
   }
 
