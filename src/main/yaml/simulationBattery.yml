@@ -33,8 +33,13 @@ seeds:
 
 launcher:
   type: GraphDqnLauncher
-  parameters:
-    batch: [10, "seed", 6000, 36] # globalRounds, seedName, global buffer size, action space cardinality
+  parameters: {
+    batch: ["seed"],
+    globalRounds: 10,
+    seedName: "seed",
+    globalBufferSize: 6000,
+    actionSpaceSize: 36
+  }
 
 network-model:
   type: ConnectWithinDistancesEdge
