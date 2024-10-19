@@ -155,8 +155,8 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
             args(
                 "--override",
                 "monitors: { type: SwingGUI, parameters: { graphics: effects/${it.nameWithoutExtension}.json } }",
-                "--override",
-                "launcher: { parameters: { batch: [], autoStart: false } }",
+//                "--override",
+//                "launcher: { parameters: { batch: [], autoStart: false } }",
                 "--verbosity",
                 "error",
             )
@@ -166,19 +166,19 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
             description = "Launches batch experiments for $capitalizedName"
             maxHeapSize = "${minOf(heap.toInt(), Runtime.getRuntime().availableProcessors() * taskSize)}m"
             File("data").mkdirs()
-            args(
-                "--override",
-                """
-                    launcher: {
-                        parameters: {
-                            batch: [ seed, spacing, error ],
-                            showProgress: true,
-                            autoStart: true,
-                            parallelism: $threadCount,
-                        }
-                    }
-                """.trimIndent(),
-            )
+//            args(
+//                "--override",
+//                """
+//                    launcher: {
+//                        parameters: {
+//                            batch: [ seed, spacing, error ],
+//                            showProgress: true,
+//                            autoStart: true,
+//                            parallelism: $threadCount,
+//                        }
+//                    }
+//                """.trimIndent(),
+//            )
         }
         runAllBatch.dependsOn(batch)
     }
