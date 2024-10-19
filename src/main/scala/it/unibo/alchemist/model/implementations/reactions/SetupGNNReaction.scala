@@ -14,11 +14,6 @@ class SetupGNNReaction [T, P <: Position[P]](
     distribution: TimeDistribution[T],
   ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
-  lazy val learner: py.Dynamic = environment
-    .getLayer(new SimpleMolecule(Molecules.learner))
-    .asInstanceOf[LearningLayer[P]]
-    .getValue(environment.makePosition(0, 0))
-
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val position = environment.getPosition(node)
     Vector(Seq(position.getCoordinate(0), position.getCoordinate(0)))

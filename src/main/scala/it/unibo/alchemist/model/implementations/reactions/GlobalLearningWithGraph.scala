@@ -25,11 +25,6 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   private val rewardFunction = rlUtils.BatteryRewardFunction()
   private lazy val actionSpace = ActionSpace(components, edgeServerSize)
 
-  private lazy val learner: py.Dynamic = environment
-    .getLayer(new SimpleMolecule(Molecules.learner))
-    .asInstanceOf[LearningLayer[P]]
-    .getValue(environment.makePosition(0, 0))
-
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val batteryLevel = BatteryEquippedDevice.getBatteryCapacity(node)
     val componentsAllocation = getAllocator(node)

@@ -1,6 +1,6 @@
 package it.unibo.alchemist.model.implementations.reactions
 
-import it.unibo.alchemist.model.{Environment, Node, Position, TimeDistribution}
+import it.unibo.alchemist.model.{Environment, LearningLayer, Node, Position, TimeDistribution}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import it.unibo.alchemist.model.molecules.SimpleMolecule
@@ -41,7 +41,13 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     .filterNot(n => n.contains(Molecules.infrastructural))
     .sortBy(node => node.getId)
 
-  protected def createGraph(): py.Dynamic = {
+  protected lazy val learner: py.Dynamic = environment
+    .getLayer(new SimpleMolecule(Molecules.learner))
+    .get()
+    .asInstanceOf[LearningLayer[P]]
+    .getValue(environment.makePosition(0, 0))
+
+  private def createGraph(): py.Dynamic = {
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
