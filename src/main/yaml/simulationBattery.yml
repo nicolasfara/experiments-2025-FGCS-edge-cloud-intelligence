@@ -85,6 +85,17 @@ _programs:
 environment:
   type: Continuous2DEnvironment
   parameters: []
+  global-programs:
+    - time-distribution:
+        type: Trigger
+        parameters: [ 0 ]
+      type: SetupGNNReaction
+      parameters: [ ]
+    - time-distribution:
+        type: DiracComb
+        parameters: [ 0.2, 1 ]
+      type: GlobalLearningWithGraph
+      parameters: [*seed]
 
 deployments:
   - type: Grid
@@ -97,23 +108,22 @@ deployments:
     properties:
       - type: AllocatorProperty
         parameters: [ *programDag ]
-#    contents:
-#  - type: SpecificPositions # Edge Servers
-#    parameters: [
-#      [ 48.2152226, 16.3816613 ],
-#      [ 48.2366507, 16.3838339 ],
-#      [ 48.2146077, 16.3485146 ],
-#      [ 48.2055562, 16.3778687 ],
-#      [ 48.1924837, 16.3458967 ],
+  - type: SpecificPositions # Edge Servers
+    parameters: [
+      [ 8.2152226, 6.3816613 ],
+      [ 8.2366507, 6.3838339 ],
+      [ 8.2146077, 6.3485146 ],
+      [ 8.2055562, 6.3778687 ],
+      [ 8.1924837, 6.3458967 ],
 #      #      [ 48.1879776, 16.3616896 ],
 #      #      [ 48.1728973, 16.3443303 ],
 #      #      [ 48.2568980, 16.4036303 ],
-#    ]
-#    programs:
-#      - *surrogateGradient
-#    contents:
-#      molecule: infrastructuralDevice
-#      concentration: true
+    ]
+    programs:
+      - *surrogateGradient
+    contents:
+      molecule: infrastructuralDevice
+      concentration: true
 
 terminate:
   type: AfterTime
