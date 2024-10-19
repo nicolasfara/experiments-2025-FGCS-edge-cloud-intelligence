@@ -27,27 +27,27 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     private val rechargeRate: Double = 0.5 // Recharge rate in C-rates
 ) extends AbstractLocalAction[T](node) {
 
-    def this(
-        environment: Environment[T, P],
-        random: RandomGenerator,
-        node: Node[T],
-        batteryCapacity: Double, // Battery capacity in mAh
-        deviceEnergyPerInstruction: Double, // Energy consumed per instruction in nJ
-        programInstructions: Long, // Instructions
-        startupCharge: Double = 100.0, // Initial battery charge in %
-        batteryVoltage: Double = 3.7, // Battery voltage in V
-        rechargeRate: Double = 0.5 // Recharge rate in C-rates
-    ) = this(
-        environment,
-        random,
-        node,
-        batteryCapacity,
-        deviceEnergyPerInstruction,
-        Map("program" -> programInstructions),
-        startupCharge,
-        batteryVoltage,
-        rechargeRate
-    )
+//    def this(
+//        environment: Environment[T, P],
+//        random: RandomGenerator,
+//        node: Node[T],
+//        batteryCapacity: Double, // Battery capacity in mAh
+//        deviceEnergyPerInstruction: Double, // Energy consumed per instruction in nJ
+//        programInstructions: Long, // Instructions
+//        startupCharge: Double = 100.0, // Initial battery charge in %
+//        batteryVoltage: Double = 3.7, // Battery voltage in V
+//        rechargeRate: Double = 0.5 // Recharge rate in C-rates
+//    ) = this(
+//        environment,
+//        random,
+//        node,
+//        batteryCapacity,
+//        deviceEnergyPerInstruction,
+//        Map("program" -> programInstructions),
+//        startupCharge,
+//        batteryVoltage,
+//        rechargeRate
+//    )
 
     private var previousTime = 0.0
     private var actualComponents = softwareComponentsInstructions
@@ -56,12 +56,12 @@ class BatteryEquippedDevice[T, P <: Position[P]](
 
     override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
-    override def execute() {
+    override def execute(): Unit = {
         val deltaTime = currentSimulationTime() - previousTime
         previousTime = currentSimulationTime()
         if (isRecharging) rechargeLogic(deltaTime) else dischargeLogic(deltaTime)
         node.setConcentration(BATTERY_CAPACITY_MOLECULE, currentBatteryCapacity.asInstanceOf[T])
-        node.setConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryCapacityPercentage().asInstanceOf[T])
+        node.setConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryCapacityPercentage.asInstanceOf[T])
     }
 
     def getBatteryCapacity: Double = currentBatteryCapacity
