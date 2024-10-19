@@ -87,8 +87,8 @@ environment:
   parameters: []
   global-programs:
     - time-distribution:
-        type: Trigger
-        parameters: [ 0 ]
+        type: DiracComb
+        parameters: [ 0.1, 1 ]
       type: SetupGNNReaction
       parameters: [ ]
     - time-distribution:
