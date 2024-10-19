@@ -39,22 +39,18 @@ class GraphDqnLauncher(
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
     Range.inclusive(1, globalRounds).foreach { iter =>
-      logger.info(s"Starting Global Round: $iter")
-      logger.info(s"Number of simulations: ${prod.size}")
+      println(s"Iteration $iter")
+      println(s"Starting Global Round: $iter")
+      println(s"Number of simulations: ${prod.size}")
       prod.zipWithIndex
-        .to(LazyList)
-        .map { case (instance, index) =>
-          instance.addOne("globalRound" -> iter)
+        .foreach { case (instance, index) =>
           val sim = loader.getWith[Any, Nothing](instance.asJava)
-          val seed = instance(seedName).asInstanceOf[Double].toLong
           println(s"${Thread.currentThread().getName}")
           val learnerLayer = new LearningLayer(learner)
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
           runSimulationSync(sim, index, instance)
         }
     }
-
-    println("[DEBUG] finished ")
   }
 
   private def cartesianProduct(
@@ -83,7 +79,6 @@ class GraphDqnLauncher(
       index: Int,
       instance: mutable.Map[String, Serializable],
   )(implicit executionContext: ExecutionContext): Simulation[Any, Nothing] = {
-
     val future = Future {
       simulation.play()
       simulation.run()
