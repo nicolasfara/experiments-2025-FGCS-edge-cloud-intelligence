@@ -82,6 +82,7 @@ class DQNTrainer:
         self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
         self.replay_buffer = GraphReplayBuffer(6000)
         self.ticks = 0
+        self.executedToHetero = False
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
@@ -95,9 +96,11 @@ class DQNTrainer:
                 return self.model(graph_observation.x_dict, graph_observation.edge_index_dict)['application'].max(dim=1)[1]
 
     def toHetero(self, data):
-        metadata = data.metadata()
-        self.model = to_hetero(self.model, metadata, aggr='sum')
-        self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
+        if not self.executedToHetero:
+            metadata = data.metadata()
+            self.model = to_hetero(self.model, metadata, aggr='sum')
+            self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
+            self.executedToHetero = True
 
     def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10, seed=42):
         torch.manual_seed(seed)
