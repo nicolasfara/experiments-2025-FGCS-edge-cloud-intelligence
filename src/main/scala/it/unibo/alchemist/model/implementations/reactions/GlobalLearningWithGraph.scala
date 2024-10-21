@@ -45,9 +45,13 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   override protected def handleGraph(observation: py.Dynamic): Unit = {
-
+    println("[DEBUG] Starting select action......")
     val actions = learner.select_action(observation, 0.05) // TODO inject epsilon from outside
-
+    println("[DEBUG] Finished select action......")
+    println(components)
+    println(s"ACTIONS -> $actions")
+    println(s"Action space size -> ${actionSpace.actions.size}")
+    print("[DEBUG] Starting creation of new allocation")
     actions
       .tolist().as[List[Int]]
       .zipWithIndex
@@ -57,7 +61,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
           .map { case PairComponentDevice(component, device) =>
             val deviceID = device match {
               case MySelf() => node.getId
-              case EdgeServer(id) => id
+              case EdgeServer(id) => id + applicationNodes.size
             }
             component.id -> deviceID
           }
@@ -65,12 +69,16 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
         getAllocator(node)
           .setComponentsAllocation(newComponentsAllocation)
       }
+    print("[DEBUG] Finished creation of new allocation")
+
 
     (oldGraph, oldActions) match {
       case (Some(previousObs), Some(previousActions)) =>
+        println("[DEBUG] Starting train step dqn......")
         val rewards = computeRewards(previousObs, observation)
         learner.add_experience(previousObs, previousActions, rewards, observation)
         learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10, seed=seed)
+        println("[DEBUG] Finished train step dqn......")
       case _ =>
     }
 
