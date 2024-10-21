@@ -48,20 +48,22 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     .getValue(environment.makePosition(0, 0))
 
   private def createGraph(): py.Dynamic = {
+    
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
     val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
-    val featuresApplication = applicationNodes.map(getNodeFeature).map(toTorchTensor)
-    val featuresInfrastructural = infrastructuralNodes.map(getNodeFeature).map(toTorchTensor)
+    val pyFeaturesApplication = toFeatures(applicationNodes)
+    val pyFeaturesInfrastructural = toFeatures(infrastructuralNodes)
     val featureAppToApp = createFeatureTensor(adjacencyAppToApp)
     val featureInfraToInfra = createFeatureTensor(adjacencyInfraToInfra)
     val featureAppToInfra = createFeatureTensor(adjacencyAppToInfra)
+
     rlUtils.create_graph(
-      featuresApplication,
-      featuresInfrastructural,
+      pyFeaturesApplication,
+      pyFeaturesInfrastructural,
       pyAdjacencyAppToInfra,
       pyAdjacencyAppToApp,
       pyAdjacencyInfraToInfra,
@@ -69,6 +71,13 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       featureAppToApp,
       featureInfraToInfra,
     )
+  }
+
+  private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
+    val tensors = data.map(getNodeFeature).map(toTorchTensor)
+    tensors
+      .tail
+      .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
   }
 
   private def createFeatureTensor(matrix: Matrix): py.Any = {
@@ -99,10 +108,16 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
         .map { case (self, neighs) => List(List.fill(neighs.length)(self), neighs) }
         .map { m => torch.tensor(m, dtype = torch.long) }
       tensors.tail
-        .foldLeft(torch.tensor(tensors.head, dtype = torch.long))((elem, acc) => torch.cat((acc, elem), dim = 1))
+        .foldLeft(torch.tensor(tensors.head, dtype = torch.long))((acc, elem) => torch.cat((acc, elem), dim = 1))
   }
 
-  private def toTorchTensor(data: Seq[Tensor]): py.Any = data.map(toTorchTensor)
+  private def toTorchTensor(data: Seq[Tensor]): py.Any = {
+    val tensors = data.map(toTorchTensor)
+    tensors
+      .tail
+      .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
+  }
+
   private def getNeighbors(n: Node[T]): Seq[Int] = {
     environment
       .getNeighborhood(n)
