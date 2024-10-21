@@ -88,7 +88,7 @@ class DQNTrainer:
 
     def select_action(self, graph_observation, epsilon):
         if random.random() < epsilon:
-            return [torch.tensor(random.randint(0, self.output_size - 1)) for _ in range(graph['application'].x.shape[0])]
+            return [torch.tensor(random.randint(0, self.output_size - 1)) for _ in range(graph_observation['application'].x.shape[0])]
         else:
             self.model.eval()
             with torch.no_grad():
