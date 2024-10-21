@@ -14,6 +14,8 @@ class SetupGNNReaction [T, P <: Position[P]](
     distribution: TimeDistribution[T],
   ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
+  private var executed = false
+
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val position = environment.getPosition(node)
     Vector(Seq(position.getCoordinate(0), position.getCoordinate(0)))
@@ -25,6 +27,10 @@ class SetupGNNReaction [T, P <: Position[P]](
   }
 
   override protected def handleGraph(graph: py.Dynamic): Unit = {
-    learner.toHetero(graph)
+    if(!executed) {
+      learner.toHetero(graph)
+      executed = true
+    }
   }
+
 }
