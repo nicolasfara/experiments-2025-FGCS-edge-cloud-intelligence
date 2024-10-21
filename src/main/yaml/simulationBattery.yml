@@ -129,4 +129,4 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 1500
+  parameters: 50
