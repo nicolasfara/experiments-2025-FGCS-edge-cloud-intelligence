@@ -65,7 +65,7 @@ final class SendApplicationScafiMessage[T, P <: Position[P]](
     val (path, optionalValue) = program.generateComponentOutputField()
     optionalValue match {
       case Some(value) => inputProgram.feedInputFromNode(device.getNode().getId, path -> value)
-      case _           => println(s"No data available to feed input of $component on node ${node.getId} from ${device.getNode.getId}")
+      case _           => //println(s"No data available to feed input of $component on node ${node.getId} from ${device.getNode.getId}")
     }
   }
 
