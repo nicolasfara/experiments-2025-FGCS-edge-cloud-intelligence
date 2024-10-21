@@ -62,12 +62,12 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     rlUtils.create_graph(
       featuresApplication,
       featuresInfrastructural,
+      pyAdjacencyAppToInfra,
       pyAdjacencyAppToApp,
       pyAdjacencyInfraToInfra,
-      pyAdjacencyAppToInfra,
+      featureAppToInfra,
       featureAppToApp,
       featureInfraToInfra,
-      featureAppToInfra,
     )
   }
 
