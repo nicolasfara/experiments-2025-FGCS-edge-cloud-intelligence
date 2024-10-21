@@ -88,7 +88,7 @@ class DQNTrainer:
 
     def select_action(self, graph_observation, epsilon):
         if random.random() < epsilon:
-            return torch.tensor(random.randint(0, self.output_size - 1))
+            return [torch.tensor(random.randint(0, self.output_size - 1)) for _ in range(graph['application'].x.shape[0])]
         else:
             self.model.eval()
             with torch.no_grad():
@@ -99,8 +99,7 @@ class DQNTrainer:
         self.model = to_hetero(self.model, metadata, aggr='sum')
         self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
 
-    def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10, seed=42):
-        torch.manual_seed(seed)
+    def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10):
         if len(self.replay_buffer) < batch_size:
             return 0
 
@@ -153,6 +152,8 @@ if __name__ == '__main__':
         edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
         edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
     )
+
+    print(graph['application'].x.shape[0])
 
     graph2 = create_graph(
         app_features=torch.tensor([[100.0, 2.0], [70.0, 1.0], [30.0, 1.0]]),
