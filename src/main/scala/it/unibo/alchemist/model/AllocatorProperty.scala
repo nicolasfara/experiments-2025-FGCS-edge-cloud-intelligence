@@ -10,22 +10,25 @@ class AllocatorProperty[T, P <: Position[P]](
     programDag: Map[ComponentId, Set[ComponentId]],
 ) extends NodeProperty[T] {
 
-  private var componentsAllocation: Map[ComponentId, Int] = programDag.view.mapValues(_ => node.getId).toMap
+  private val availableComponents = (programDag.keys.toSet ++ programDag.values.flatten.toSet)
+  private var componentsAllocation: Map[ComponentId, Int] = availableComponents
+    .map(_ -> node.getId).toMap
 
   /** Set the components' allocation for this application device (node).
     *
     * This method updates the internal state of the components allocation for this node.
     */
   def setComponentsAllocation(newAllocation: Map[ComponentId, Int]): Unit = {
-    checkComponentsValidity(newAllocation, programDag).foreach(throw _)
+    checkComponentsValidity(newAllocation).foreach(throw _)
     val neighborsNodes = environment.getNeighborhood(node).getNeighbors.iterator().asScala.toSet + node
     checkAllocationValidity(newAllocation, neighborsNodes.map(_.getId)).foreach(throw _)
-    componentsAllocation = newAllocation
+    componentsAllocation = componentsAllocation ++ newAllocation
   }
 
   /** Get the components' allocation for this application device (node).
     */
-  def getComponentsAllocation: Map[ComponentId, Int] = componentsAllocation
+  def getComponentsAllocation: Map[ComponentId, Int] =
+    componentsAllocation
 
   /** Check if the specified component is offloaded to an _infrastructural device_.
     *
@@ -44,9 +47,8 @@ class AllocatorProperty[T, P <: Position[P]](
     */
   private def checkComponentsValidity(
       allocation: Map[ComponentId, Int],
-      programDag: Map[ComponentId, Set[ComponentId]],
   ): Option[UnknownComponentException] = {
-    val unknownComponents = allocation.keys.filterNot(programDag.contains).toList
+    val unknownComponents = allocation.keys.filterNot(availableComponents.contains).toList
     if (unknownComponents.nonEmpty) {
       Some(UnknownComponentException(s"Unknown components: ${unknownComponents.mkString(", ")}"))
     } else {
