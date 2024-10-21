@@ -48,10 +48,10 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     .getValue(environment.makePosition(0, 0))
 
   private def createGraph(): py.Dynamic = {
-    
+
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
-    val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId), infrastructuralNodes.map(_.getId))
-    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId))
+    val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId - applicationNodes.size), infrastructuralNodes.map(_.getId - applicationNodes.size))
+    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId - applicationNodes.size))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
     val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
@@ -74,7 +74,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   }
 
   private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
-    val tensors = data.map(getNodeFeature).map(toTorchTensor)
+    val tensors = data.map(getNodeFeature).map(toTorchTensor(_, index = false))
     tensors
       .tail
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
@@ -101,18 +101,27 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     Matrix(d)
   }
 
-  private def toTorchTensor(data: Tensor): py.Dynamic = data match {
-    case v: Vector => torch.tensor(v.data.toPythonCopy, dtype = torch.float64)
+  private def toTorchTensor(data: Tensor, index: Boolean = true): py.Dynamic = data match {
+    case v: Vector =>
+      if (index)
+        torch.tensor(v.data.toPythonCopy, dtype= torch.int64)
+      else
+        torch.tensor(v.data.toPythonCopy)
     case m: Matrix =>
       val tensors = m.data
         .map { case (self, neighs) => List(List.fill(neighs.length)(self), neighs) }
-        .map { m => torch.tensor(m, dtype = torch.long) }
+        .map { m =>
+          if (index)
+            torch.tensor(m, dtype = torch.int64)
+          else
+            torch.tensor(m)
+        }
       tensors.tail
-        .foldLeft(torch.tensor(tensors.head, dtype = torch.long))((acc, elem) => torch.cat((acc, elem), dim = 1))
+        .foldLeft(torch.tensor(tensors.head))((acc, elem) => torch.cat((acc, elem), dim = 1))
   }
 
   private def toTorchTensor(data: Seq[Tensor]): py.Any = {
-    val tensors = data.map(toTorchTensor)
+    val tensors = data.map(toTorchTensor(_, index = false))
     tensors
       .tail
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
