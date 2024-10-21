@@ -130,3 +130,22 @@ deployments:
 terminate:
   type: AfterTime
   parameters: 50
+
+export:
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "experiment"
+      interval: 1.0
+      exportPath: "data"
+    data:
+      - time
+      - molecule: reward
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyFinite
+        precision: 3
+      - molecule: batteryPercentage
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
+      - molecule: batteryCapacity
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
