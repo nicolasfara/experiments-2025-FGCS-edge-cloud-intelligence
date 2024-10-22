@@ -39,7 +39,6 @@ class GraphDqnLauncher(
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
     Range.inclusive(1, globalRounds).foreach { iter =>
-      println(s"Iteration $iter")
       println(s"Starting Global Round: $iter")
       println(s"Number of simulations: ${prod.size}")
       prod.zipWithIndex
