@@ -24,7 +24,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   private var oldActions: Option[py.Dynamic] = None
   private val rewardFunction = rlUtils.BatteryRewardFunction()
   private lazy val actionSpace = ActionSpace(components, edgeServerSize)
-  private lazy val decay = environment
+  private lazy val epsilon = environment
     .getLayer(new SimpleMolecule(Molecules.decay))
     .get()
     .asInstanceOf[DecayLayer[P]]
@@ -50,9 +50,6 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   override protected def handleGraph(observation: py.Dynamic): Unit = {
-    val epsilon = decay.value()
-    println(s"[DEBUG] Epsilon value: $epsilon")
-    decay.update()
     val actions = learner.select_action(observation, epsilon)
     actions
       .tolist().as[List[Int]]
@@ -121,6 +118,4 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
       .head
   }
 
-
-
-  }
+}

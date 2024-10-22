@@ -2,8 +2,8 @@ package it.unibo.alchemist.model
 
 import learning.model.ExponentialDecay
 
-class DecayLayer [P <: Position[P]](decay: ExponentialDecay) extends Layer[ExponentialDecay, P]{
+class DecayLayer [P <: Position[P]](decay: Double) extends Layer[Double, P]{
 
-  override def getValue(p: P): ExponentialDecay = decay
+  override def getValue(p: P): Double = decay
 
 }
