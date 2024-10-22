@@ -62,8 +62,11 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
           .toMap
         getAllocator(node)
           .setComponentsAllocation(newComponentsAllocation)
-      }
 
+        val localComponents = newComponentsAllocation.values.count(_ == node.getId).toDouble
+        val localComponentsPercentage = localComponents / components.size.toDouble
+        node.setConcentration(new SimpleMolecule(Molecules.localComponentsPercentage), localComponentsPercentage.asInstanceOf[T])
+      }
 
     (oldGraph, oldActions) match {
       case (Some(previousObs), Some(previousActions)) =>
@@ -79,7 +82,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
 
   private def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
     val rewards = rewardFunction.compute_threshold(obs, nextObs).tolist().as[List[Double]]
-    rewards // TODO - for data exporting, check if we must export also something else
+    rewards
       .zipWithIndex
       .foreach { case (reward, index) =>
         applicationNodes(index).setConcentration(new SimpleMolecule(Molecules.reward), reward.asInstanceOf[T])

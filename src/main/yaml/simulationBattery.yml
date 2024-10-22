@@ -149,3 +149,6 @@ export:
       - molecule: batteryCapacity
         aggregators: [min, max, mean, variance]
         value-filter: onlyfinite
+      - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
