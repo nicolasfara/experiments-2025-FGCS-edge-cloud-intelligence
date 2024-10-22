@@ -22,7 +22,7 @@ variables:
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
-      Map(gradientProgram -> 5_000_000L, greaterDistance -> 8_500_000L)
+      Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
 
 seeds:
   scenario: *seed
@@ -92,7 +92,7 @@ environment:
       parameters: [ ]
     - time-distribution:
         type: DiracComb
-        parameters: [ 0.2, 0.2 ]
+        parameters: [ 2.2, 0.2 ]
       type: GlobalLearningWithGraph
       parameters: [*seed]
 
@@ -120,8 +120,6 @@ deployments:
     contents:
       - molecule: infrastructuralDevice
         concentration: true
-      - molecule: batteryPercentage
-        concentration: 100
 
 terminate:
   type: AfterTime

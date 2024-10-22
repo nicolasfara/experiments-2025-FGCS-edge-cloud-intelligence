@@ -31,8 +31,8 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     .getValue(environment.makePosition(0, 0))
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
-    val batteryLevel = BatteryEquippedDevice.getBatteryCapacity(node)
     if(!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
+      val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
       val componentsAllocation = getAllocator(node)
         .getComponentsAllocation
       val totalComponents = componentsAllocation.size
@@ -40,7 +40,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
       Vector(Seq(batteryLevel, (localComponents / totalComponents).toDouble))
     }
     else {
-      Vector(Seq(batteryLevel))
+      Vector(Seq())
     }
   }
 
@@ -88,7 +88,6 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
         learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10, seed=seed)
       case _ =>
     }
-
     oldGraph = Some(observation)
     oldActions = Some(actions)
   }
