@@ -61,7 +61,6 @@ def load_data_from_csv(path, round):
     print(f'For round {round} loaded {len(files)} files')
     for file in files:
         columns = extractVariableNames(file)
-        print(columns)
         data = openCsv(file)
         df = pd.DataFrame(data, columns=columns)
         dataframes.append(df)
