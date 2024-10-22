@@ -6,13 +6,10 @@ variables:
     max: 1
     step: 1
     default: 0
-  nodeCount: &nodeCount
+  globalRound: &globalRound
     type: ArbitraryVariable
-    parameters: [50, [50, 100, 200]]
+    parameters: [ 1, [ 2, 3 ] ]
   #------------------------------------------------------------------
-  moveFrequency: &moveFrequency
-    language: scala
-    formula: 1.0 / 2
   gradientProgram: &gradientProgram
     language: scala
     formula: "\"it.unibo.alchemist.Gradient\""
@@ -124,8 +121,10 @@ deployments:
       - *surrogateGradient
       - *surrogateGreater
     contents:
-      molecule: infrastructuralDevice
-      concentration: true
+      - molecule: infrastructuralDevice
+        concentration: true
+      - molecule: batteryPercentage
+        concentration: 100
 
 terminate:
   type: AfterTime
@@ -141,7 +140,7 @@ export:
       - time
       - molecule: reward
         aggregators: [min, max, mean, variance]
-        value-filter: onlyFinite
+        value-filter: onlyfinite
         precision: 3
       - molecule: batteryPercentage
         aggregators: [min, max, mean, variance]

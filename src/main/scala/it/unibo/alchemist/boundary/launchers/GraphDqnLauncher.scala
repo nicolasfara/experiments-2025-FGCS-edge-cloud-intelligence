@@ -43,6 +43,7 @@ class GraphDqnLauncher(
       println(s"Number of simulations: ${prod.size}")
       prod.zipWithIndex
         .foreach { case (instance, index) =>
+          instance.addOne("globalRound" -> iter)
           val sim = loader.getWith[Any, Nothing](instance.asJava)
           println(s"${Thread.currentThread().getName}")
           val learnerLayer = new LearningLayer(learner)
