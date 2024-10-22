@@ -27,28 +27,6 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     private val rechargeRate: Double = 0.5 // Recharge rate in C-rates
 ) extends AbstractLocalAction[T](node) {
 
-//    def this(
-//        environment: Environment[T, P],
-//        random: RandomGenerator,
-//        node: Node[T],
-//        batteryCapacity: Double, // Battery capacity in mAh
-//        deviceEnergyPerInstruction: Double, // Energy consumed per instruction in nJ
-//        programInstructions: Long, // Instructions
-//        startupCharge: Double = 100.0, // Initial battery charge in %
-//        batteryVoltage: Double = 3.7, // Battery voltage in V
-//        rechargeRate: Double = 0.5 // Recharge rate in C-rates
-//    ) = this(
-//        environment,
-//        random,
-//        node,
-//        batteryCapacity,
-//        deviceEnergyPerInstruction,
-//        Map("program" -> programInstructions),
-//        startupCharge,
-//        batteryVoltage,
-//        rechargeRate
-//    )
-
     private var previousTimeCache: Option[Double] = None
     private var actualComponents = softwareComponentsInstructions
     private var currentBatteryCapacity = batteryCapacity * startupCharge / 100.0
@@ -69,10 +47,13 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     }
 
     def getBatteryCapacity: Double = currentBatteryCapacity
+
     def getBatteryCapacityPercentage: Double = currentBatteryCapacity / batteryCapacity * 100.0
+
     def recharge: Unit = {
         isRecharging = true
     }
+
     private def removeComponentExecution(component: String): Unit = {
         softwareComponentsInstructions.get(component) match {
             case Some(_) => actualComponents = actualComponents - component
@@ -98,10 +79,6 @@ class BatteryEquippedDevice[T, P <: Position[P]](
 
     private def dischargeLogic(deltaTime: Double): Unit = {
         val epiInJoule = deviceEnergyPerInstruction * 1e-9 // Convert nJ to J
-        if (node.getId == 0) {
-            println(s"[DEBUG] $node at time $currentSimulationTime() --> ")
-            println(actualComponents)
-        }
         val componentsConsumedEnergy = actualComponents
           .map { case (component, instructions) =>
             component match {
@@ -126,7 +103,9 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     }
 
     private def joulesToWatt(joules: Double, deltaTime: Double): Double = joules / deltaTime
+
     private def wattToMilliAmpere(watt: Double, voltage: Double): Double = watt / voltage * 1000
+
     private def currentSimulationTime(): Double = environment.getSimulation.getTime.toDouble
 }
 
@@ -135,5 +114,6 @@ object BatteryEquippedDevice {
     val BATTERY_CAPACITY_PERCENTAGE_MOLECULE = new SimpleMolecule("batteryPercentage")
 
     def getBatteryCapacity[T](node: Node[T]): Double = node.getConcentration(BATTERY_CAPACITY_MOLECULE).asInstanceOf[Double]
+
     def getBatteryPercentage[T](node: Node[T]): Double = node.getConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE).asInstanceOf[Double]
 }
