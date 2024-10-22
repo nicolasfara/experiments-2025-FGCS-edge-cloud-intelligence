@@ -63,6 +63,14 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
         getAllocator(node)
           .setComponentsAllocation(newComponentsAllocation)
 
+        val batteryModel = node.getReactions.asScala
+          .flatMap(_.getActions.asScala)
+          .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
+          .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
+          .getOrElse(throw new IllegalStateException("Porco dio non c'e'"))
+
+        batteryModel.updateComponentsExecution(newComponentsAllocation)
+
         val localComponents = newComponentsAllocation.values.count(_ == node.getId).toDouble
         val localComponentsPercentage = localComponents / components.size.toDouble
         node.setConcentration(new SimpleMolecule(Molecules.localComponentsPercentage), localComponentsPercentage.asInstanceOf[T])
@@ -81,7 +89,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   private def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute_threshold(obs, nextObs).tolist().as[List[Double]]
+    val rewards = rewardFunction.compute_difference(obs, nextObs).tolist().as[List[Double]]
     rewards
       .zipWithIndex
       .foreach { case (reward, index) =>
@@ -104,4 +112,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
       .map(_.asInstanceOf[AllocatorProperty[T, P]])
       .head
   }
-}
+
+
+
+  }
