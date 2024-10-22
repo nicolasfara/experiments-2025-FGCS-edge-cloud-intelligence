@@ -72,7 +72,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
           .flatMap(_.getActions.asScala)
           .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
           .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
-          .getOrElse(throw new IllegalStateException("Porco dio non c'é"))
+          .getOrElse(throw new IllegalStateException("Battery action not found!"))
 
         batteryModel.updateComponentsExecution(newComponentsAllocation)
 
