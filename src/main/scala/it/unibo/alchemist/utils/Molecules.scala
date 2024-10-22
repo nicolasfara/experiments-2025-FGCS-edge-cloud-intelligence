@@ -5,4 +5,5 @@ object Molecules {
   val learner = "learner"
   val reward = "reward"
   val localComponentsPercentage = "localComponentsPercentage"
+  val decay = "decay"
 }

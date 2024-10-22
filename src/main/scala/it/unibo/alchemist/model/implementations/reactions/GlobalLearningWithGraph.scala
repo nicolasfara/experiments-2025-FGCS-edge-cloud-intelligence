@@ -4,7 +4,7 @@ import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.model._
 import it.unibo.alchemist.utils.Molecules
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
-import learning.model.{ActionSpace, Component, EdgeServer, MySelf, PairComponentDevice}
+import learning.model.{ActionSpace, Component, EdgeServer, MySelf, PairComponentDevice, ExponentialDecay}
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters
 
@@ -24,6 +24,11 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   private var oldActions: Option[py.Dynamic] = None
   private val rewardFunction = rlUtils.BatteryRewardFunction()
   private lazy val actionSpace = ActionSpace(components, edgeServerSize)
+  private lazy val decay = environment
+    .getLayer(new SimpleMolecule(Molecules.decay))
+    .get()
+    .asInstanceOf[DecayLayer[P]]
+    .getValue(environment.makePosition(0, 0))
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
     val batteryLevel = BatteryEquippedDevice.getBatteryCapacity(node)
@@ -45,7 +50,10 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
   }
 
   override protected def handleGraph(observation: py.Dynamic): Unit = {
-    val actions = learner.select_action(observation, 0.05) // TODO inject epsilon from outside
+    val epsilon = decay.value()
+    println(s"[DEBUG] Epsilon value: $epsilon")
+    decay.update()
+    val actions = learner.select_action(observation, epsilon)
     actions
       .tolist().as[List[Int]]
       .zipWithIndex
@@ -67,7 +75,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
           .flatMap(_.getActions.asScala)
           .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
           .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
-          .getOrElse(throw new IllegalStateException("Porco dio non c'e'"))
+          .getOrElse(throw new IllegalStateException("Porco dio non c'é"))
 
         batteryModel.updateComponentsExecution(newComponentsAllocation)
 

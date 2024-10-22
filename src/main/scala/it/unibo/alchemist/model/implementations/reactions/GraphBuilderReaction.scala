@@ -47,6 +47,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     .asInstanceOf[LearningLayer[P]]
     .getValue(environment.makePosition(0, 0))
 
+
   private def createGraph(): py.Dynamic = {
 
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))

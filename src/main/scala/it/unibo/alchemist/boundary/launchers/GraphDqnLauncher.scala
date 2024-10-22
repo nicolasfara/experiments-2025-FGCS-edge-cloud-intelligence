@@ -3,10 +3,11 @@ package it.unibo.alchemist.boundary.launchers
 import com.google.common.collect.Lists
 import it.unibo.alchemist.boundary.{Launcher, Loader, Variable}
 import it.unibo.alchemist.core.Simulation
-import it.unibo.alchemist.model.{Layer, LearningLayer}
+import it.unibo.alchemist.model.{DecayLayer, Layer, LearningLayer}
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.Molecules
 import it.unibo.alchemist.utils.PythonModules.rlUtils
+import learning.model.ExponentialDecay
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -46,6 +47,9 @@ class GraphDqnLauncher(
           instance.addOne("globalRound" -> iter)
           val sim = loader.getWith[Any, Nothing](instance.asJava)
           println(s"${Thread.currentThread().getName}")
+          val decay = new ExponentialDecay(0.99 / iter, 0.05, 0.1)
+          val decayLayer = new DecayLayer(decay)
+          sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
           val learnerLayer = new LearningLayer(learner)
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
           runSimulationSync(sim, index, instance)
