@@ -1,6 +1,6 @@
 package it.unibo.alchemist.model
 
-import it.unibo.alchemist.model.BatteryEquippedDevice.{BATTERY_CAPACITY_MOLECULE, BATTERY_CAPACITY_PERCENTAGE_MOLECULE}
+import it.unibo.alchemist.model.BatteryEquippedDevice.{BATTERY_CAPACITY_MOLECULE, BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryPercentage}
 import it.unibo.alchemist.model.actions.AbstractLocalAction
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import org.apache.commons.math3.random.RandomGenerator
@@ -49,7 +49,7 @@ class BatteryEquippedDevice[T, P <: Position[P]](
 //        rechargeRate
 //    )
 
-    private var previousTime = 0.0
+    private var previousTimeCache: Option[Double] = None
     private var actualComponents = softwareComponentsInstructions
     private var currentBatteryCapacity = batteryCapacity * startupCharge / 100.0
     private var isRecharging = false
@@ -57,11 +57,15 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
     override def execute(): Unit = {
-        val deltaTime = currentSimulationTime() - previousTime
-        previousTime = currentSimulationTime()
-        if (isRecharging) rechargeLogic(deltaTime) else dischargeLogic(deltaTime)
-        node.setConcentration(BATTERY_CAPACITY_MOLECULE, currentBatteryCapacity.asInstanceOf[T])
-        node.setConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryCapacityPercentage.asInstanceOf[T])
+        previousTimeCache match {
+            case None => previousTimeCache = Some(currentSimulationTime())
+            case Some(previousTime) =>
+                val deltaTime = currentSimulationTime() - previousTime
+                previousTimeCache = Some(currentSimulationTime())
+                if (isRecharging) rechargeLogic(deltaTime) else dischargeLogic(deltaTime)
+                node.setConcentration(BATTERY_CAPACITY_MOLECULE, currentBatteryCapacity.asInstanceOf[T])
+                node.setConcentration(BATTERY_CAPACITY_PERCENTAGE_MOLECULE, getBatteryCapacityPercentage.asInstanceOf[T])
+        }
     }
 
     def getBatteryCapacity: Double = currentBatteryCapacity
