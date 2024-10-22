@@ -73,13 +73,23 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     def recharge: Unit = {
         isRecharging = true
     }
-    def removeComponentExecution(component: String): Unit = {
+    private def removeComponentExecution(component: String): Unit = {
         softwareComponentsInstructions.get(component) match {
             case Some(_) => actualComponents = actualComponents - component
             case None => throw new IllegalStateException(s"Component $component not found in ${softwareComponentsInstructions.keys}")
         }
     }
-    def addComponentExecution(component: String): Unit = {
+
+    def updateComponentsExecution(allocation: Map[String, Int]): Unit = {
+        require(softwareComponentsInstructions.keySet.union(allocation.keySet).size == softwareComponentsInstructions.keySet.size)
+        allocation
+          .foreach {
+              case (component, id) if id == node.getId => addComponentExecution(component)
+              case (component, _) => removeComponentExecution(component)
+          }
+    }
+
+    private def addComponentExecution(component: String): Unit = {
         softwareComponentsInstructions.get(component) match {
             case Some(instructions) => actualComponents = actualComponents + (component -> instructions)
             case None => throw new IllegalStateException(s"Component $component not found in ${softwareComponentsInstructions.keys}")
@@ -88,6 +98,10 @@ class BatteryEquippedDevice[T, P <: Position[P]](
 
     private def dischargeLogic(deltaTime: Double): Unit = {
         val epiInJoule = deviceEnergyPerInstruction * 1e-9 // Convert nJ to J
+        if (node.getId == 0) {
+            println(s"[DEBUG] $node at time $currentSimulationTime() --> ")
+            println(actualComponents)
+        }
         val componentsConsumedEnergy = actualComponents
           .map { case (component, instructions) =>
             component match {
