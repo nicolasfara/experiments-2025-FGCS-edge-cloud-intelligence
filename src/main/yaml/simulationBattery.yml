@@ -22,7 +22,7 @@ variables:
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
-      Map(gradientProgram -> 1_000_000L, greaterDistance -> 1_500_000L)
+      Map(gradientProgram -> 5_000_000L, greaterDistance -> 8_500_000L)
 
 seeds:
   scenario: *seed
@@ -92,7 +92,7 @@ environment:
       parameters: [ ]
     - time-distribution:
         type: DiracComb
-        parameters: [ 0.2, 1 ]
+        parameters: [ 0.2, 0.2 ]
       type: GlobalLearningWithGraph
       parameters: [*seed]
 
@@ -113,9 +113,6 @@ deployments:
       [ 8.2146077, 6.3485146 ],
       [ 8.2055562, 6.3778687 ],
       [ 8.1924837, 6.3458967 ],
-#      #      [ 48.1879776, 16.3616896 ],
-#      #      [ 48.1728973, 16.3443303 ],
-#      #      [ 48.2568980, 16.4036303 ],
     ]
     programs:
       - *surrogateGradient
@@ -128,7 +125,7 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 50
+  parameters: 300
 
 export:
   - type: CSVExporter
