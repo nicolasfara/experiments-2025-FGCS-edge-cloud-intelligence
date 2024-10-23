@@ -80,6 +80,12 @@ _programs:
         actions:
           - type: BatteryEquippedDevice
             parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
+  - program: &payPerUseDevice
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: PayPerUseDevice
+          parameters: [1.0] # Cost per component per hour in $/h
 
 environment:
   type: Continuous2DEnvironment
@@ -117,6 +123,7 @@ deployments:
     programs:
       - *surrogateGradient
       - *surrogateGreater
+      - *payPerUseDevice
     contents:
       - molecule: infrastructuralDevice
         concentration: true
