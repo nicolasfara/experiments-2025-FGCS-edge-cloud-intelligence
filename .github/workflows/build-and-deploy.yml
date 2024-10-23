@@ -18,10 +18,17 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - name: Setup python
+      uses: actions/setup-python@v5.1.1
+      with:
+        python-version-file: .python-version
     - uses: DanySK/build-check-deploy-gradle-action@3.5.1
       with:
         build-command: true
-        check-command: ./gradlew runAllGraphic
+        check-command: |
+          python -m venv env
+          source env/bin/activate
+          ./gradlew runAllGraphic
         deploy-command: true
         should-run-codecov: false
         should-validate-wrapper: ${{ contains('Linux', runner.os) }}
