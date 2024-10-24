@@ -24,7 +24,7 @@ class LearningWithCosts[T, P <: Position[P]](
       Vector(Seq((localComponents / totalComponents).toDouble))
     }
     else {
-      val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
+      val cost = node.getConcentration(PayPerUseDevice.COST_LAST_DELTA).asInstanceOf[Double]
       Vector(Seq(cost))
     }
   }
