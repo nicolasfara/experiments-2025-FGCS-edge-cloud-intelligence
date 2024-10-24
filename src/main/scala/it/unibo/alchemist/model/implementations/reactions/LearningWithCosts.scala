@@ -17,10 +17,14 @@ class LearningWithCosts[T, P <: Position[P]](
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
     if(!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
-      Vector(Seq())
+      val componentsAllocation = getAllocator(node)
+        .getComponentsAllocation
+      val totalComponents = componentsAllocation.size
+      val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
+      Vector(Seq((localComponents / totalComponents).toDouble))
     }
     else {
-      val cost = node.getConcentration(PayPerUseDevice.COST_LAST_DELTA).asInstanceOf[Double]
+      val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
       Vector(Seq(cost))
     }
   }
@@ -44,6 +48,7 @@ class LearningWithCosts[T, P <: Position[P]](
 
   override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
     val rewards = rewardFunction.compute(obs, nextObs).tolist().as[List[Double]]
+    //println(s"[DEBUG] Rewards: $rewards")
     rewards
       .zipWithIndex
       .foreach { case (reward, index) =>
