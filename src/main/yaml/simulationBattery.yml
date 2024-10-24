@@ -123,7 +123,6 @@ deployments:
     programs:
       - *surrogateGradient
       - *surrogateGreater
-      - *payPerUseDevice
     contents:
       - molecule: infrastructuralDevice
         concentration: true
