@@ -215,7 +215,7 @@ final class RunApplicationScafiProgram[T, P <: Position[P]](
 
 final class RunSurrogateScafiProgram[T, P <: Position[P]](
     environment: Environment[T, P],
-    node: Node[T],
+    val node: Node[T],
     reaction: Reaction[T],
     randomGenerator: RandomGenerator,
     programName: String,

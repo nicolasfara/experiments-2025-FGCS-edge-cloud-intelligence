@@ -11,12 +11,15 @@ class PayPerUseDevice[T, P <: Position[P]](
     private val node: Node[T],
     private val dollarsPerHourPerComponent: Double,
 ) extends AbstractLocalAction[T](node) {
+
   private lazy val surrogateRunner = node.getReactions.asScala
     .flatMap(_.getActions.asScala)
-    .find(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
+    .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
     .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
-    .getOrElse(throw new IllegalStateException(s"No `RunSurrogateScafiProgram` found for node ${node.getId}"))
+    .toList
+
   private var previousTime: Option[Double] = None
+
   private var totalCost = 0.0
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
@@ -29,7 +32,7 @@ class PayPerUseDevice[T, P <: Position[P]](
         val deltaTime = currentTime - prevTime
         previousTime = Some(currentTime)
         val cost = deltaTime * dollarsPerHourPerComponent / 3600
-        val costLastDelta = surrogateRunner.isSurrogateFor.size * cost
+        val costLastDelta = surrogateRunner.map(_.isSurrogateFor.size).sum * cost
         totalCost += costLastDelta
         node.setConcentration(PayPerUseDevice.COST_LAST_DELTA, costLastDelta.asInstanceOf[T])
         node.setConcentration(PayPerUseDevice.TOTAL_COST, totalCost.asInstanceOf[T])
