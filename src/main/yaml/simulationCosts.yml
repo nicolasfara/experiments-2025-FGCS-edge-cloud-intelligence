@@ -19,10 +19,6 @@ variables:
   programDag: &programDag
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
-  componentsInstructions: &componentsInstructions
-    language: scala
-    formula: |
-      Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
 
 seeds:
   scenario: *seed
@@ -74,12 +70,6 @@ _programs:
           - type: RunApplicationScafiProgram
             parameters: [ *greaterDistance, *retentionTime, *programDag ]
       - program: send
-  - program: &batteryDevice
-      - time-distribution: 1
-        type: Event
-        actions:
-          - type: BatteryEquippedDevice
-            parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
   - program: &payPerUseDevice
     - time-distribution: 1
       type: Event
@@ -99,7 +89,7 @@ environment:
     - time-distribution:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
-      type: GlobalLearningWithGraph
+      type: LearningWithCosts
       parameters: [*seed]
 
 deployments:
@@ -143,12 +133,6 @@ export:
         aggregators: [min, max, mean, variance]
         value-filter: onlyfinite
         precision: 3
-      - molecule: batteryPercentage
-        aggregators: [min, max, mean, variance]
-        value-filter: onlyfinite
-      - molecule: batteryCapacity
-        aggregators: [min, max, mean, variance]
-        value-filter: onlyfinite
       - molecule: localComponentsPercentage
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite
