@@ -29,15 +29,19 @@ class AllocatorProperty[T, P <: Position[P]](
 
   private def removeFromRemote(oldAllocation: Map[ComponentId, Int], newAllocation: Map[ComponentId, Int]): Unit = {
     newAllocation.foreach { case (componentId, where) =>
+      println(s"Component ID $componentId")
+      println(oldAllocation)
       val oldWhere = oldAllocation.get(componentId).get
       if (where == node.getId && oldWhere != node.getId) {
         environment
           .getNodeByID(oldWhere)
           .getReactions
           .asScala
+          .flatMap(_.getActions.asScala)
           .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
           .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
-          .head
+          .find(_.programNameMolecule.getName == componentId)
+          .get
           .removeSurrogateFor(node.getId)
       }
     }
