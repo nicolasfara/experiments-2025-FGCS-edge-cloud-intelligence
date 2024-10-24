@@ -36,5 +36,11 @@ class RuleControllerModularizationRuntime[T, P <: Position[P]](
       case "full-offload" => allocator.setComponentsAllocation(components.map(_ -> candidateInfrastructural.getId).toMap)
       case _              => throw new IllegalStateException(s"Unknown scenario type: $scenarioType")
     }
+    val percentageOffloadedComponents = allocator.getComponentsAllocation.values.count(_ != node.getId) / components.size.toDouble
+    node.setConcentration(RuleControllerModularizationRuntime.PERCENTAGE_OFFLOADED_COMPONENTS, percentageOffloadedComponents.asInstanceOf[T])
   }
+}
+
+private object RuleControllerModularizationRuntime {
+  private val PERCENTAGE_OFFLOADED_COMPONENTS = new SimpleMolecule("percentageOffloadedComponents")
 }

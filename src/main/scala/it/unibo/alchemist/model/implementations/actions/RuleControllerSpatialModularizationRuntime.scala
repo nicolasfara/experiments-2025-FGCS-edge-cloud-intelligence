@@ -39,6 +39,8 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
     } else {
       allocator.setComponentsAllocation(components.map(_ -> node.getId).toMap)
     }
+    val percentageOffloadedComponents = allocator.getComponentsAllocation.values.count(_ != node.getId) / components.size.toDouble
+    node.setConcentration(RuleControllerSpatialModularizationRuntime.PERCENTAGE_OFFLOADED_COMPONENTS, percentageOffloadedComponents.asInstanceOf[T])
   }
 
   private def getNeighborsWithLevel(node: Node[T], level: Int): Set[Node[T]] = {
@@ -55,4 +57,8 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
           .toSet
     }
   }
+}
+
+private object RuleControllerSpatialModularizationRuntime {
+  private val PERCENTAGE_OFFLOADED_COMPONENTS = new SimpleMolecule("percentageOffloadedComponents")
 }
