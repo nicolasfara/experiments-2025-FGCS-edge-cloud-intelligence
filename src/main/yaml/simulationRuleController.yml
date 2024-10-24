@@ -144,10 +144,15 @@ export:
       exportPath: "data"
     data:
       - time
-      - molecule: reward
-        aggregators: [min, max, mean, variance]
-        value-filter: onlyfinite
-        precision: 3
+      - type: NodesPositions
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryCapacity", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "localComponentsPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "ComponentsExecutionCount", 3 ]
       - molecule: batteryPercentage
         aggregators: [min, max, mean, variance]
         value-filter: onlyfinite
@@ -155,5 +160,8 @@ export:
         aggregators: [min, max, mean, variance]
         value-filter: onlyfinite
       - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: ComponentsExecutionCount
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite

@@ -270,6 +270,7 @@ final class RunSurrogateScafiProgram[T, P <: Position[P]](
       }
     })
     node.setConcentration(new SimpleMolecule(s"SurrogateFor[$programName]"), isSurrogateFor.toList.sorted.asInstanceOf[T])
+    node.setConcentration(new SimpleMolecule("ComponentsExecutionCount"), surrogateForNodes.size.toDouble.asInstanceOf[T])
     completed = true
   }
 
