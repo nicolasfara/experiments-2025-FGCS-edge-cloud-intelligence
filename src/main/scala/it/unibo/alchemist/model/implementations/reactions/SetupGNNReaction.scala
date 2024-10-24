@@ -33,4 +33,10 @@ class SetupGNNReaction [T, P <: Position[P]](
     }
   }
 
+  override protected def updateAllocation(node: Node[T], newAllocation: Map[String, Int]): Unit = {}
+
+  override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = obs
+
+  override protected def getSeed: Int = 0
+
 }

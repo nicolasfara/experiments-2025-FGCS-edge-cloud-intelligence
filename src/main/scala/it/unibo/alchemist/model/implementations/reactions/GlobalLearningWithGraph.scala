@@ -17,18 +17,7 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     seed: Int
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
-  private lazy val edgeServerSize = infrastructuralNodes.size
-  private lazy val components = getComponents
-
-  private var oldGraph: Option[py.Dynamic] = None
-  private var oldActions: Option[py.Dynamic] = None
   private val rewardFunction = rlUtils.BatteryRewardFunction()
-  private lazy val actionSpace = ActionSpace(components, edgeServerSize)
-  private lazy val epsilon = environment
-    .getLayer(new SimpleMolecule(Molecules.decay))
-    .get()
-    .asInstanceOf[DecayLayer[P]]
-    .getValue(environment.makePosition(0, 0))
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
     if(!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
@@ -49,50 +38,24 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     Vector(Seq(distance))
   }
 
-  override protected def handleGraph(observation: py.Dynamic): Unit = {
-    val actions = learner.select_action(observation, epsilon)
-    actions
-      .tolist().as[List[Int]]
-      .zipWithIndex
-      .foreach { case (actionIndex, nodeIndex) =>
-        val node = applicationNodes(nodeIndex)
-        val newComponentsAllocation = actionSpace.actions(actionIndex)
-          .map { case PairComponentDevice(component, device) =>
-            val deviceID = device match {
-              case MySelf() => node.getId
-              case EdgeServer(id) => id + applicationNodes.size
-            }
-            component.id -> deviceID
-          }
-          .toMap
-        getAllocator(node)
-          .setComponentsAllocation(newComponentsAllocation)
+  override protected def updateAllocation(node: Node[T], newAllocation: Map[String, Int]): Unit = {
+    getAllocator(node)
+      .setComponentsAllocation(newAllocation)
 
-        val batteryModel = node.getReactions.asScala
-          .flatMap(_.getActions.asScala)
-          .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
-          .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
-          .getOrElse(throw new IllegalStateException("Battery action not found!"))
+    val batteryModel = node.getReactions.asScala
+      .flatMap(_.getActions.asScala)
+      .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
+      .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
+      .getOrElse(throw new IllegalStateException("Battery action not found!"))
 
-        batteryModel.updateComponentsExecution(newComponentsAllocation)
+    batteryModel.updateComponentsExecution(newAllocation)
 
-        val localComponents = newComponentsAllocation.values.count(_ == node.getId).toDouble
-        val localComponentsPercentage = localComponents / components.size.toDouble
-        node.setConcentration(new SimpleMolecule(Molecules.localComponentsPercentage), localComponentsPercentage.asInstanceOf[T])
-      }
-
-    (oldGraph, oldActions) match {
-      case (Some(previousObs), Some(previousActions)) =>
-        val rewards = computeRewards(previousObs, observation)
-        learner.add_experience(previousObs, previousActions, rewards, observation)
-        learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10, seed=seed)
-      case _ =>
-    }
-    oldGraph = Some(observation)
-    oldActions = Some(actions)
+    val localComponents = newAllocation.values.count(_ == node.getId).toDouble
+    val localComponentsPercentage = localComponents / components.size.toDouble
+    node.setConcentration(new SimpleMolecule(Molecules.localComponentsPercentage), localComponentsPercentage.asInstanceOf[T])
   }
 
-  private def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
+  override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
     val rewards = rewardFunction.compute_difference(obs, nextObs).tolist().as[List[Double]]
     rewards
       .zipWithIndex
@@ -102,19 +65,6 @@ class GlobalLearningWithGraph[T, P <: Position[P]](
     torch.Tensor(rewards.toPythonProxy)
   }
 
-  private def getComponents: Seq[Component] = {
-    getAllocator(applicationNodes.head)
-      .getComponentsAllocation
-      .keys
-      .map(id => Component(id))
-      .toSeq
-  }
-
-  private def getAllocator(node: Node[T]) = {
-    node.getProperties.asScala
-      .filter(_.isInstanceOf[AllocatorProperty[T, P]])
-      .map(_.asInstanceOf[AllocatorProperty[T, P]])
-      .head
-  }
+  override protected def getSeed: Int = seed
 
 }
