@@ -99,7 +99,7 @@ environment:
     - time-distribution:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
-      type: GlobalLearningWithGraph
+      type: LearningWithBattery
       parameters: [*seed]
 
 deployments:

@@ -11,7 +11,7 @@ import me.shadaj.scalapy.py.SeqConverters
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
-class GlobalLearningWithGraph[T, P <: Position[P]](
+class LearningWithBattery[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
     seed: Int
