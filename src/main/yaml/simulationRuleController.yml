@@ -9,6 +9,9 @@ variables:
   nodeCount: &nodeCount
     type: ArbitraryVariable
     parameters: [ 50, [ 50, 100, 200 ] ]
+  scenarioType: &scenarioType
+    type: ArbitraryVariable
+    parameters: [ "full-offload", [ "full-local", "full-offload" ] ]
   #------------------------------------------------------------------
   gradientProgram: &gradientProgram
     language: scala
@@ -76,6 +79,14 @@ _programs:
       actions:
         - type: PayPerUseDevice
           parameters: [1.0] # Cost per component per hour in $/h
+  - program: &ruleControllerModularizationRuntime
+    - time-distribution:
+        type: Trigger
+        parameters: [ 1 ]
+      type: Event
+      actions:
+        - type: RuleControllerModularizationRuntime
+          parameters: [ *programDag, *scenarioType ]
 
 #launcher:
 #  parameters:
@@ -89,6 +100,7 @@ _application-programs: &application-programs
   - *gradient
   - *greater
   - *batteryDevice
+  - *ruleControllerModularizationRuntime
 
 _application-allocation: &application-allocation
   type: AllocatorProperty
