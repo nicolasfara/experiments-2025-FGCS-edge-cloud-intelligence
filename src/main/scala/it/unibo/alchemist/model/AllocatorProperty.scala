@@ -3,7 +3,9 @@ package it.unibo.alchemist.model
 import it.unibo.alchemist.model.AllocatorProperty.{AllocationException, ComponentId, UnknownComponentException}
 import it.unibo.alchemist.model.implementations.actions.{RunApplicationScafiProgram, RunSurrogateScafiProgram}
 
+import scala.Option
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
+import scala.reflect.ClassTag
 
 class AllocatorProperty[T, P <: Position[P]](
     environment: Environment[T, P],
@@ -11,9 +13,10 @@ class AllocatorProperty[T, P <: Position[P]](
     programDag: Map[ComponentId, Set[ComponentId]],
 ) extends NodeProperty[T] {
 
+  private lazy val mid = node.getId
   private val availableComponents = (programDag.keys.toSet ++ programDag.values.flatten.toSet)
   private var componentsAllocation: Map[ComponentId, Int] = availableComponents
-    .map(_ -> node.getId).toMap
+    .map(_ -> mid).toMap
 
   /** Set the components' allocation for this application device (node).
     *
@@ -29,20 +32,18 @@ class AllocatorProperty[T, P <: Position[P]](
 
   private def removeFromRemote(oldAllocation: Map[ComponentId, Int], newAllocation: Map[ComponentId, Int]): Unit = {
     newAllocation.foreach { case (componentId, where) =>
-      println(s"Component ID $componentId")
-      println(oldAllocation)
-      val oldWhere = oldAllocation.get(componentId).get
-      if (where == node.getId && oldWhere != node.getId) {
-        environment
-          .getNodeByID(oldWhere)
-          .getReactions
-          .asScala
-          .flatMap(_.getActions.asScala)
-          .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
-          .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
-          .find(_.programNameMolecule.getName == componentId)
-          .get
-          .removeSurrogateFor(node.getId)
+      oldAllocation.get(componentId) match {
+        case Some(oldEdgeServerID) if where != oldEdgeServerID =>
+          environment
+            .getNodeByID(oldEdgeServerID)
+            .getReactions
+            .asScala
+            .flatMap(_.getActions.asScala)
+            .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
+            .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
+            .find(_.programNameMolecule.getName == componentId)
+            .foreach { v => v.removeSurrogateFor(node.getId) }
+        case _ =>
       }
     }
   }
