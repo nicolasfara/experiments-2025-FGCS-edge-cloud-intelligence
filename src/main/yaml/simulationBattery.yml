@@ -134,7 +134,7 @@ terminate:
 export:
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment"
+      fileNameRoot: "experiment-battery"
       interval: 1.0
       exportPath: "data"
     data:
