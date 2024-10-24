@@ -75,7 +75,7 @@ _programs:
       type: Event
       actions:
         - type: PayPerUseDevice
-          parameters: [1.0] # Cost per component per hour in $/h
+          parameters: [10.0] # Cost per component per hour in $/h
 
 environment:
   type: Continuous2DEnvironment
