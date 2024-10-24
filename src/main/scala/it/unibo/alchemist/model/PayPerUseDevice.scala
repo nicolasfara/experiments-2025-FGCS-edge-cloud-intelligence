@@ -38,6 +38,6 @@ class PayPerUseDevice[T, P <: Position[P]](
 }
 
 private object PayPerUseDevice {
-  private val COST_LAST_DELTA = new SimpleMolecule("costLastDelta")
-  private val TOTAL_COST = new SimpleMolecule("totalCost")
+  val COST_LAST_DELTA = new SimpleMolecule("costLastDelta")
+  val TOTAL_COST = new SimpleMolecule("totalCost")
 }
