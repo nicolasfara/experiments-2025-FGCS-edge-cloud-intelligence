@@ -39,7 +39,7 @@ class GraphDqnLauncher(
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    val decay = new ExponentialDecay(0.9, 0.2, 0.02)
+    val decay = new ExponentialDecay(0.9, 0.4, 0.02)
     Range.inclusive(1, globalRounds).foreach { iter =>
       println(s"Starting Global Round: $iter")
       println(s"Number of simulations: ${prod.size}")
