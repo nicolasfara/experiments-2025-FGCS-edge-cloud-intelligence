@@ -92,7 +92,7 @@ environment:
       parameters: [ ]
     - time-distribution:
         type: DiracComb
-        parameters: [ 1.2, 0.2 ]
+        parameters: [ 2.2, 0.2 ]
       type: LearningWithBattery
       parameters: [*seed]
 
