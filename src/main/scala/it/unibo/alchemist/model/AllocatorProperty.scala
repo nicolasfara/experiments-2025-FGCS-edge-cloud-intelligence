@@ -1,8 +1,9 @@
 package it.unibo.alchemist.model
 
 import it.unibo.alchemist.model.AllocatorProperty.{AllocationException, ComponentId, UnknownComponentException}
+import it.unibo.alchemist.model.implementations.actions.{RunApplicationScafiProgram, RunSurrogateScafiProgram}
 
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 class AllocatorProperty[T, P <: Position[P]](
     environment: Environment[T, P],
@@ -22,7 +23,24 @@ class AllocatorProperty[T, P <: Position[P]](
     checkComponentsValidity(newAllocation).foreach(throw _)
     val neighborsNodes = environment.getNeighborhood(node).getNeighbors.iterator().asScala.toSet + node
     checkAllocationValidity(newAllocation, neighborsNodes.map(_.getId)).foreach(throw _)
+    removeFromRemote(componentsAllocation, newAllocation)
     componentsAllocation = componentsAllocation ++ newAllocation
+  }
+
+  private def removeFromRemote(oldAllocation: Map[ComponentId, Int], newAllocation: Map[ComponentId, Int]): Unit = {
+    newAllocation.foreach { case (componentId, where) =>
+      val oldWhere = oldAllocation.get(componentId).get
+      if (where == node.getId && oldWhere != node.getId) {
+        environment
+          .getNodeByID(oldWhere)
+          .getReactions
+          .asScala
+          .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
+          .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
+          .head
+          .removeSurrogateFor(node.getId)
+      }
+    }
   }
 
   /** Get the components' allocation for this application device (node).
