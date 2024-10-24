@@ -143,6 +143,16 @@ class BatteryRewardFunction:
         rewards = torch.where(battery_status > 50, torch.tensor(0.), torch.tensor(-10.))
         return rewards
 
+
+class CostRewardFunction:
+
+    def compute(self, observation, next_observation):
+        cost_t1 = observation["infrastructure"].x[:, 0]
+        cost_t2 = next_observation["infrastructure"].x[:, 0]
+        single_reward = - torch.sum(cost_t2)
+        application_nodes = next_observation["application"].x.shape[0]
+        return torch.full((1, application_nodes), single_reward).flatten()
+
 # Just a quick test
 if __name__ == '__main__':
 
@@ -189,9 +199,14 @@ if __name__ == '__main__':
     print(trainer.select_action(graph, 0.0))
     print('OK!')
 
-    print('-------------------------------- Checking RF ---------------------------------')
+    print('---------------------------- Checking RF Battery -----------------------------')
     reward_function = BatteryRewardFunction()
     diff = reward_function.compute_difference(graph, graph2)
     th = reward_function.compute_threshold(graph, graph2)
     print(diff)
     print(th)
+
+    print('---------------------------- Checking RF Costs -----------------------------')
+    reward_function = CostRewardFunction()
+    reward = reward_function.compute(graph, graph2)
+    print(reward)
