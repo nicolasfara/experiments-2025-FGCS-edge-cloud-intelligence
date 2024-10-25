@@ -3,7 +3,7 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 1
+    max: 2
     step: 1
     default: 0
   globalRound: &globalRound
@@ -28,7 +28,7 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 10,
+    globalRounds: 15,
     seedName: "seed",
     globalBufferSize: 6000,
     actionSpaceSize: 36
@@ -75,7 +75,7 @@ _programs:
       type: Event
       actions:
         - type: PayPerUseDevice
-          parameters: [10.0] # Cost per component per hour in $/h
+          parameters: [100.0] # Cost per component per hour in $/h
 
 environment:
   type: Continuous2DEnvironment
