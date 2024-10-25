@@ -2,6 +2,7 @@ package it.unibo.alchemist.model
 
 import it.unibo.alchemist.model.AllocatorProperty.{AllocationException, ComponentId, UnknownComponentException}
 import it.unibo.alchemist.model.implementations.actions.{RunApplicationScafiProgram, RunSurrogateScafiProgram}
+import it.unibo.alchemist.utils.AlchemistScafiUtils.getAlchemistActions
 
 import scala.Option
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
@@ -34,13 +35,7 @@ class AllocatorProperty[T, P <: Position[P]](
     newAllocation.foreach { case (componentId, where) =>
       oldAllocation.get(componentId) match {
         case Some(oldEdgeServerID) if where != oldEdgeServerID =>
-          environment
-            .getNodeByID(oldEdgeServerID)
-            .getReactions
-            .asScala
-            .flatMap(_.getActions.asScala)
-            .filter(_.isInstanceOf[RunSurrogateScafiProgram[T, P]])
-            .map(_.asInstanceOf[RunSurrogateScafiProgram[T, P]])
+          getAlchemistActions(environment, oldEdgeServerID, classOf[RunSurrogateScafiProgram[T, P]])
             .find(_.programNameMolecule.getName == componentId)
             .foreach { v => v.removeSurrogateFor(node.getId) }
         case _ =>
