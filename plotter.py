@@ -94,7 +94,9 @@ if __name__ == '__main__':
     for experiment in experiments: 
         Path(f'{charts_dir}{experiment}/').mkdir(parents=True, exist_ok=True)
 
-        for round in range(1, 11):
+        for round in range(1, 16):
+            if round > 10 and "battery" in experiment:
+                break
             dataframes = load_data_from_csv(data_path, experiment, round)
             df_concat = pd.concat(dataframes)
             by_row_index = df_concat.groupby(df_concat.index)
