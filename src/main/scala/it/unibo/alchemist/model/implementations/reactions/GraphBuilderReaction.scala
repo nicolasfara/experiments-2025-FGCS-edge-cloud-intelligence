@@ -115,6 +115,13 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   protected def handleGraph(observation: py.Dynamic): Unit = {
 
     val actions = learner.select_action(observation, epsilon)
+//    var actions = torch.full((1, 100), 0).flatten()
+//    val time = environment.getSimulation.getTime.toDouble
+//    if (time >= 15 && time < 30 ){
+//      actions = torch.full((1, 100), 34).flatten()
+//    } else {
+//      actions = torch.full((1, 100), 0).flatten()
+//    }
     actions
       .tolist().as[List[Int]]
       .zipWithIndex
