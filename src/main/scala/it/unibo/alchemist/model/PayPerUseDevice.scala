@@ -22,6 +22,8 @@ class PayPerUseDevice[T, P <: Position[P]](
 
   private var totalCost = 0.0
 
+  private var deltaCostPerDevice: Map[Int, Double] = Map()
+
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
   override def execute(): Unit = {
@@ -32,12 +34,37 @@ class PayPerUseDevice[T, P <: Position[P]](
         val deltaTime = currentTime - prevTime
         previousTime = Some(currentTime)
         val cost = deltaTime * dollarsPerHourPerComponent / 3600
+
+        deltaCostPerDevice = getLastDeltaCostPerDevice(cost)
+          .map { case (id, c) => (id, deltaCostPerDevice.getOrElse(id, 0.0) + c) }
+
+        println(s"[DEBUG] $deltaCostPerDevice ${deltaCostPerDevice.size}")
         val costLastDelta = surrogateRunner.map(_.isSurrogateFor.size).sum * cost
         totalCost += costLastDelta
         node.setConcentration(PayPerUseDevice.COST_LAST_DELTA, costLastDelta.asInstanceOf[T])
         node.setConcentration(PayPerUseDevice.TOTAL_COST, totalCost.asInstanceOf[T])
     }
   }
+
+  def deltaCostPerDevice(deviceID: Int): Double = deltaCostPerDevice.get(deviceID) match {
+    case Some(cost) =>
+      deltaCostPerDevice = deltaCostPerDevice - deviceID
+      cost
+    case _ => 0.0
+  }
+
+  private def getLastDeltaCostPerDevice(deltaCost: Double): Map[Int, Double] =
+    surrogateRunner
+      .map(program => program.isSurrogateFor)
+      .map(ids => ids.map(id => id -> deltaCost).toMap)
+      .foldLeft(Map.empty[Int, Double]) {
+        case (acc, listOfMaps) =>
+          listOfMaps.foldLeft(acc) {
+            case (map, (id, costPerComponent)) =>
+              map.updated(id, map.getOrElse(id, 0.0) + costPerComponent)
+          }
+      }
+
 }
 
 private object PayPerUseDevice {
