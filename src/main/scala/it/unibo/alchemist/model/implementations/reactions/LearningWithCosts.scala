@@ -22,10 +22,14 @@ class LearningWithCosts[T, P <: Position[P]](
         .getComponentsAllocation
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
-      val deltaCost =
-        getAlchemistActions(environment, node.getId, classOf[PayPerUseDevice[T, P]])
-          .head
-          .deltaCostPerDevice(node.getId)
+
+      val deltaCost = componentsAllocation
+        .filterNot { case (_, edgeServerId) => edgeServerId == node.getId }
+        .map { case (_, edgeServerId) => getAlchemistActions(environment, edgeServerId, classOf[PayPerUseDevice[T, P]]) }
+        .map(_.head)
+        .map(_.deltaCostPerDevice(node.getId))
+        .sum
+
       Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
     }
     else {
