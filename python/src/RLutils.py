@@ -147,7 +147,7 @@ class BatteryRewardFunction:
 class CostRewardFunction:
 
     def compute(self, observation, next_observation):
-        costs = observation["application"].x[:, 0]
+        costs = next_observation["application"].x[:, 0]
         return -costs
 
 # Just a quick test
