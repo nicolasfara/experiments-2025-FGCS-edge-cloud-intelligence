@@ -40,6 +40,16 @@ object AlchemistScafiUtils {
     } yield node).toList
   }
 
+  def getAlchemistActions[K, T, P <: Position[P]](environment: Environment[T, P], nodeID: Int, clazz: Class[K]): Iterable[K] = {
+    environment
+      .getNodeByID(nodeID)
+      .getReactions
+      .asScala
+      .flatMap(_.getActions.asScala)
+      .filter(clazz.isInstance(_))
+      .map(_.asInstanceOf[K])
+  }
+
   implicit def euclideanToPoint[P <: Position[P]](point: P): Point3D = point.getDimensions match {
     case 1 => Point3D(point.getCoordinate(0), 0, 0)
     case 2 => Point3D(point.getCoordinate(0), point.getCoordinate(1), 0)
