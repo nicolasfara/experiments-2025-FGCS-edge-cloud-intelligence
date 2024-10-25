@@ -38,7 +38,6 @@ class PayPerUseDevice[T, P <: Position[P]](
         deltaCostPerDevice = getLastDeltaCostPerDevice(cost)
           .map { case (id, c) => (id, deltaCostPerDevice.getOrElse(id, 0.0) + c) }
 
-        println(s"[DEBUG] $deltaCostPerDevice ${deltaCostPerDevice.size}")
         val costLastDelta = surrogateRunner.map(_.isSurrogateFor.size).sum * cost
         totalCost += costLastDelta
         node.setConcentration(PayPerUseDevice.COST_LAST_DELTA, costLastDelta.asInstanceOf[T])
