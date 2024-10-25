@@ -22,6 +22,11 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
     .find(_.isInstanceOf[AllocatorProperty[T, P]])
     .map(_.asInstanceOf[AllocatorProperty[T, P]])
     .getOrElse(throw new IllegalStateException(s"`AllocatorProperty` not found for node ${node.getId}"))
+  private lazy val batteryModel = node.getReactions.asScala
+    .flatMap(_.getActions.asScala)
+    .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
+    .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
+    .getOrElse(throw new IllegalStateException(s"`BatteryEquippedDevice` not found for node ${node.getId}"))
   private lazy val surrogate = environment
     .getNeighborhood(node)
     .iterator()
@@ -39,6 +44,7 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
     } else {
       allocator.setComponentsAllocation(components.map(_ -> node.getId).toMap)
     }
+    batteryModel.updateComponentsExecution(allocator.getComponentsAllocation)
     val percentageOffloadedComponents = allocator.getComponentsAllocation.values.count(_ != node.getId) / components.size.toDouble
     node.setConcentration(RuleControllerSpatialModularizationRuntime.PERCENTAGE_OFFLOADED_COMPONENTS, percentageOffloadedComponents.asInstanceOf[T])
   }

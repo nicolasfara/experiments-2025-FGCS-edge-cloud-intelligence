@@ -2,7 +2,7 @@ package it.unibo.alchemist.model.implementations.actions
 
 import it.unibo.alchemist.model.actions.AbstractLocalAction
 import it.unibo.alchemist.model.molecules.SimpleMolecule
-import it.unibo.alchemist.model.{Action, AllocatorProperty, Environment, Node, Position, Reaction}
+import it.unibo.alchemist.model.{Action, AllocatorProperty, BatteryEquippedDevice, Environment, Node, Position, Reaction}
 import org.apache.commons.math3.random.RandomGenerator
 
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
@@ -20,6 +20,11 @@ class RuleControllerModularizationRuntime[T, P <: Position[P]](
     .find(_.isInstanceOf[AllocatorProperty[T, P]])
     .map(_.asInstanceOf[AllocatorProperty[T, P]])
     .getOrElse(throw new IllegalStateException(s"`AllocatorProperty` not found for node ${node.getId}"))
+  private lazy val batteryModel = node.getReactions.asScala
+    .flatMap(_.getActions.asScala)
+    .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
+    .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
+    .getOrElse(throw new IllegalStateException(s"`BatteryEquippedDevice` not found for node ${node.getId}"))
   private lazy val surrogate = environment
     .getNeighborhood(node)
     .iterator()
@@ -32,10 +37,11 @@ class RuleControllerModularizationRuntime[T, P <: Position[P]](
 
   override def execute(): Unit = {
     scenarioType match {
-      case "full-local"   => allocator.setComponentsAllocation(components.map(_ -> node.getId).toMap)
-      case "full-offload" => allocator.setComponentsAllocation(components.map(_ -> candidateInfrastructural.getId).toMap)
+      case "fulllocal"   => allocator.setComponentsAllocation(components.map(_ -> node.getId).toMap)
+      case "fulloffload" => allocator.setComponentsAllocation(components.map(_ -> candidateInfrastructural.getId).toMap)
       case _              => throw new IllegalStateException(s"Unknown scenario type: $scenarioType")
     }
+    batteryModel.updateComponentsExecution(allocator.getComponentsAllocation)
     val percentageOffloadedComponents = allocator.getComponentsAllocation.values.count(_ != node.getId) / components.size.toDouble
     node.setConcentration(RuleControllerModularizationRuntime.PERCENTAGE_OFFLOADED_COMPONENTS, percentageOffloadedComponents.asInstanceOf[T])
   }

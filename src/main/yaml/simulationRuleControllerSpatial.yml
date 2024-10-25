@@ -3,7 +3,7 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 1
+    max: 9
     step: 1
     default: 0
   neighborThreshold: &neighborThreshold
@@ -22,6 +22,9 @@ variables:
   programDag: &programDag
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
+  osInstructions: &osInstructions
+    language: scala
+    formula: 100_000L
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
@@ -72,7 +75,7 @@ _programs:
         type: Event
         actions:
           - type: BatteryEquippedDevice
-            parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
+            parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5, *osInstructions ] # Battery capacity, EPI (nJ), components instructions
   - program: &payPerUseDevice
     - time-distribution: 1
       type: Event
@@ -88,9 +91,9 @@ _programs:
         - type: RuleControllerSpatialModularizationRuntime
           parameters: [ *programDag, *neighborThreshold, *neighborSteps ]
 
-#launcher:
-#  parameters:
-#    batch: [seed]
+launcher:
+  parameters:
+    batch: [seed, neighborThreshold, neighborSteps]
 
 environment:
   type: Continuous2DEnvironment
@@ -142,7 +145,26 @@ terminate:
 export:
   - type: CSVExporter
     parameters:
-      fileNameRoot: "basline-spatial"
+      fileNameRoot: "baseline-spatial-aggregated"
+      interval: 1.0
+      exportPath: "data"
+    data:
+      - time
+      - molecule: batteryPercentage
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
+      - molecule: batteryCapacity
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
+      - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: ComponentsExecutionCount
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "baseline-spatial-nodes"
       interval: 1.0
       exportPath: "data"
     data:
@@ -156,15 +178,3 @@ export:
         parameters: [ "localComponentsPercentage", 3 ]
       - type: MoleculePerNodeExtractor
         parameters: [ "ComponentsExecutionCount", 3 ]
-      - molecule: batteryPercentage
-        aggregators: [min, max, mean, variance]
-        value-filter: onlyfinite
-      - molecule: batteryCapacity
-        aggregators: [min, max, mean, variance]
-        value-filter: onlyfinite
-      - molecule: localComponentsPercentage
-        aggregators: [ min, max, mean, variance ]
-        value-filter: onlyfinite
-      - molecule: ComponentsExecutionCount
-        aggregators: [ min, max, mean, variance ]
-        value-filter: onlyfinite

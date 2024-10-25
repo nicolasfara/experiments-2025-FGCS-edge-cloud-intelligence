@@ -88,7 +88,7 @@ def extractCoordinates(filename):
     """
     with open(filename, 'r') as file:
 #        regex = re.compile(' (?P<varName>[a-zA-Z._-]+) = (?P<varValue>[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?),?')
-        regex = r"(?P<varName>[a-zA-Z._-]+) = (?P<varValue>[^,]*),?"
+        regex = r"(?P<varName>[a-zA-Z._-]+) = (?P<varValue>(?:\[[^\]]*\]|[^,]*)),?"
         dataBegin = r"\d"
         is_float = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
         for line in file:
@@ -184,17 +184,17 @@ if __name__ == '__main__':
     # How to name the summary of the processed data
     pickleOutput = 'data_summary'
     # Experiment prefixes: one per experiment (root of the file name)
-    experiments = ['simulation']
+    experiments = ['baseline-spatial-aggregated', 'baseline-static-aggregated']
     floatPrecision = '{: 0.3f}'
     # Number of time samples 
-    timeSamples = 100
+    timeSamples = 200
     # time management
-    minTime = 0
-    maxTime = 50
+    minTime = 5
+    maxTime = 300
     timeColumnName = 'time'
     logarithmicTime = False
     # One or more variables are considered random and "flattened"
-    seedVars = ['seed', 'longseed']
+    seedVars = [] # ['seed']
     # Label mapping
     class Measure:
         def __init__(self, description, unit = None):
@@ -422,6 +422,35 @@ if __name__ == '__main__':
     for experiment in experiments:
         current_experiment_means = means[experiment]
         current_experiment_errors = stdevs[experiment]
-        generate_all_charts(current_experiment_means, current_experiment_errors, basedir = f'{experiment}/all')
+        # generate_all_charts(current_experiment_means, current_experiment_errors, basedir = f'{experiment}/all')
         
 # Custom charting
+    import seaborn as sns
+    import seaborn.objects as so
+
+    # setup theme seaborn
+    sns.set_theme()
+    sns.set_style("whitegrid")
+    sns.color_palette("colorblind")
+
+    rule_static_data_ = means['baseline-static-aggregated']
+    print(rule_static_data_.coords['scenarioType'])
+    rule_static_data = rule_static_data_['batteryPercentage[mean]'].to_dataframe()
+    # convert to a dataframe with 'time' and the value of 'batteryPercentage[mean]' where the 'seed' are used for error bars
+    print(rule_static_data.columns)
+
+    # plot a chart using seaborn where two lines (one for each scenarioType) are plotted where on x axis we have the 'time' and on y axis the 'value' and the y axis 'batteryPercentage[mean]'
+
+    plt.figure(figsize=(8, 5))
+    battery_plot = sns.lineplot(
+        data=rule_static_data,
+        x='time',
+        y='batteryPercentage[mean]',
+        hue='scenarioType'
+    )
+    battery_plot.set(
+        xlabel="Time (s)",
+        ylabel="Battery Percentage (%)",
+        title="Battery Percentage over Time"
+    )
+    plt.savefig("charts/battery_percentage_baseline.pdf")
