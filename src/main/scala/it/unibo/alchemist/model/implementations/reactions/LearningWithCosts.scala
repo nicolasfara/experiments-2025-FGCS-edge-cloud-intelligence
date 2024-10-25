@@ -3,6 +3,7 @@ package it.unibo.alchemist.model.implementations.reactions
 import it.unibo.alchemist.model.{Environment, Node, PayPerUseDevice, Position, TimeDistribution}
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import it.unibo.alchemist.model.molecules.SimpleMolecule
+import it.unibo.alchemist.utils.AlchemistScafiUtils.getAlchemistActions
 import it.unibo.alchemist.utils.Molecules
 import me.shadaj.scalapy.py.SeqConverters
 import me.shadaj.scalapy.py
@@ -21,10 +22,14 @@ class LearningWithCosts[T, P <: Position[P]](
         .getComponentsAllocation
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
-      Vector(Seq((localComponents / totalComponents).toDouble))
+      val deltaCost =
+        getAlchemistActions(environment, node.getId, classOf[PayPerUseDevice[T, P]])
+          .head
+          .deltaCostPerDevice(node.getId)
+      Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
     }
     else {
-      val cost = node.getConcentration(PayPerUseDevice.COST_LAST_DELTA).asInstanceOf[Double]
+      val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
       Vector(Seq(cost))
     }
   }
