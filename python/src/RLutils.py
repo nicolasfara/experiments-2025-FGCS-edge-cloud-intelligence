@@ -147,11 +147,8 @@ class BatteryRewardFunction:
 class CostRewardFunction:
 
     def compute(self, observation, next_observation):
-        cost_t1 = observation["infrastructure"].x[:, 0]
-        cost_t2 = next_observation["infrastructure"].x[:, 0]
-        single_reward = - torch.sum(cost_t2)
-        application_nodes = next_observation["application"].x.shape[0]
-        return torch.full((1, application_nodes), single_reward).flatten()
+        costs = observation["application"].x[:, 0]
+        return -costs
 
 # Just a quick test
 if __name__ == '__main__':
