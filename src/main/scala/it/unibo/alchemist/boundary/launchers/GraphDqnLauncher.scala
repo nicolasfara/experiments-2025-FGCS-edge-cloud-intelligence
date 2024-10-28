@@ -39,7 +39,7 @@ class GraphDqnLauncher(
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    val decay = new ExponentialDecay(0.9, 0.2, 0.02)
+    val decay = new ExponentialDecay(0.99, 0.1, 0.02)
     Range.inclusive(1, globalRounds).foreach { iter =>
       println(s"Starting Global Round: $iter")
       println(s"Number of simulations: ${prod.size}")
@@ -51,6 +51,8 @@ class GraphDqnLauncher(
           println(s"${Thread.currentThread().getName}")
           val decayLayer = new DecayLayer(decay.value())
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
+          val seed = instance(seedName).asInstanceOf[Double].toLong
+          learner.set_seed(seed)
           val learnerLayer = new LearningLayer(learner)
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
           runSimulationSync(sim, index, instance)

@@ -1,5 +1,4 @@
 import torch
-import random
 from torch_geometric.data import HeteroData
 import random
 from torch_geometric.data import Data, Batch
@@ -34,6 +33,10 @@ class GraphReplayBuffer:
         self.capacity = capacity
         self.buffer = []
         self.position = 0
+        self.random = random
+
+    def set_seed(self, seed):
+        self.random.seed(seed)
 
     def push(self, graph_observation, actions, rewards, next_graph_observation):
         if len(self.buffer) < self.capacity:
@@ -42,7 +45,7 @@ class GraphReplayBuffer:
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
-        sample = random.sample(self.buffer, batch_size)
+        sample = self.random.sample(self.buffer, batch_size)
         observations = [s[0] for s in sample]
         actions = [s[1] for s in sample]
         rewards = [s[2] for s in sample]
@@ -83,13 +86,18 @@ class DQNTrainer:
         self.replay_buffer = GraphReplayBuffer(6000)
         self.ticks = 0
         self.executedToHetero = False
+        self.random = random
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
 
+    def set_seed(self, seed):
+        self.random.seed(seed)
+        self.replay_buffer.set_seed(seed)
+
     def select_action(self, graph_observation, epsilon):
-        if random.random() < epsilon:
-            return torch.tensor([random.randint(0, self.output_size - 1) for _ in range(graph_observation['application'].x.shape[0])])
+        if self.random.random() < epsilon:
+            return torch.tensor([self.random.randint(0, self.output_size - 1) for _ in range(graph_observation['application'].x.shape[0])])
         else:
             self.model.eval()
             with torch.no_grad():
@@ -148,7 +156,7 @@ class CostRewardFunction:
 
     def compute(self, observation, next_observation):
         costs = next_observation["application"].x[:, 0]
-        return -costs
+        return -50 * costs
 
 # Just a quick test
 if __name__ == '__main__':
