@@ -23,6 +23,14 @@ class LearningWithCosts[T, P <: Position[P]](
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
 
+      val allocation = getAllocator(node)
+        .getComponentsAllocation
+        .values
+        .map{
+          case id if id == node.getId => 1.0
+          case _ => 0.0
+        }
+
       val deltaCost = componentsAllocation
         .filterNot { case (_, edgeServerId) => edgeServerId == node.getId }
         .map { case (_, edgeServerId) => getAlchemistActions(environment, edgeServerId, classOf[PayPerUseDevice[T, P]]) }
@@ -30,11 +38,12 @@ class LearningWithCosts[T, P <: Position[P]](
         .map(_.deltaCostPerDevice(node.getId))
         .sum
 
-      Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
+      //Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
+      Vector(Seq(deltaCost, localComponents) ++ allocation)
     }
     else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
-      Vector(Seq(cost))
+      Vector(Seq(1))
     }
   }
 
@@ -56,14 +65,18 @@ class LearningWithCosts[T, P <: Position[P]](
   }
 
   override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute(obs, nextObs).tolist().as[List[Double]]
-    //println(s"[DEBUG] Rewards: $rewards")
+    val rewards = rewardFunction.compute(obs, nextObs)
+//    println(environment.getSimulation.getTime.toDouble)
+    //    println(s"[DEBUG] Rewards: $rewards")
+
     rewards
+      .tolist().as[List[Double]]
       .zipWithIndex
       .foreach { case (reward, index) =>
         applicationNodes(index).setConcentration(new SimpleMolecule(Molecules.reward), reward.asInstanceOf[T])
       }
-    torch.Tensor(rewards.toPythonProxy)
+//    torch.Tensor(rewards.toPythonProxy)
+    rewards
   }
 
   override protected def getSeed: Int = seed
