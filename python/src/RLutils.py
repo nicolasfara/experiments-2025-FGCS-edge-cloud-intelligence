@@ -5,6 +5,10 @@ from torch_geometric.data import Data, Batch
 import torch.nn.functional as F
 from torch_geometric.nn import GATConv, to_hetero, SAGEConv
 import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
+import pandas as pd
+import math
+import numpy as np
 
 def create_graph(
         app_features,
@@ -38,6 +42,9 @@ class GraphReplayBuffer:
     def set_seed(self, seed):
         self.random.seed(seed)
 
+    def size(self):
+        return len(self.buffer)
+
     def push(self, graph_observation, actions, rewards, next_graph_observation):
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
@@ -59,6 +66,7 @@ class GCN(torch.nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
         self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)
+        # self.conv1 = SAGEConv((-1, -1), hidden_dim, bias=True)
         # self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         # self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
@@ -77,27 +85,44 @@ class GCN(torch.nn.Module):
         return x
 
 class DQNTrainer:
-    def __init__(self, output_size):
+    def __init__(self, output_size, seed):
+        self.train_summary_writer = SummaryWriter()
         self.output_size = output_size
-        self.model = GCN(hidden_dim=32, output_dim=output_size)
-        self.target_model = GCN(hidden_dim=32, output_dim=output_size)
+        self.replay_buffer = GraphReplayBuffer(30000)
+        self.random = random
+        self.hidden_size = 32
+        self.set_seed(seed)
+        self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
+        self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.0001)
-        self.replay_buffer = GraphReplayBuffer(6000)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.00001)
         self.ticks = 0
         self.executedToHetero = False
-        self.random = random
+        self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
 
+    def save_stats(self, path, seed):
+        self.stats.to_csv(f'{path}/stats-seed_{seed}.csv', index=False)
+
     def set_seed(self, seed):
         self.random.seed(seed)
         self.replay_buffer.set_seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.cuda.manual_seed(seed)
+
+    def biased_random(self):
+        # if(self.random.random() < 0.9):
+        #     return 0
+        # else:
+        return self.random.randint(0, self.output_size - 1)
 
     def select_action(self, graph_observation, epsilon):
         if self.random.random() < epsilon:
-            return torch.tensor([self.random.randint(0, self.output_size - 1) for _ in range(graph_observation['application'].x.shape[0])])
+            return torch.tensor([self.biased_random() for _ in range(graph_observation['application'].x.shape[0])])
         else:
             self.model.eval()
             with torch.no_grad():
@@ -111,31 +136,59 @@ class DQNTrainer:
             self.executedToHetero = True
 
     def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10, seed=42):
-        torch.manual_seed(seed)
         if len(self.replay_buffer) < batch_size:
             return 0
 
-        self.model.train()
-        self.optimizer.zero_grad()
-        obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
-        values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
-        nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
-        targetValues = rewards + gamma * nextValues
-        loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
-        self.optimizer.step()
+        # epochs = min(math.ceil(self.replay_buffer.size() / 2), 50)
+        epochs = 20
+        self.train_summary_writer.add_scalar('buffer size', self.replay_buffer.size(), self.ticks)
+        self.train_summary_writer.add_scalar('epochs', epochs, self.ticks)
 
-        if self.ticks % update_target_every == 0:
-            del self.target_model
-            metadata = obs.metadata()
-            self.target_model = GCN(hidden_dim=32, output_dim=self.output_size)
-            self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
-            self.target_model.load_state_dict(self.model.state_dict())
-        self.ticks += 1
+        for _ in range(epochs):
+            self.model.train()
+            obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
+            av_reward = torch.mean(rewards)
+            self.train_summary_writer.add_scalar('average_rewards', av_reward, self.ticks)
+            rewards = torch.nn.functional.normalize(rewards, dim=0)
+            values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
+            nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
+            targetValues = rewards + (gamma * nextValues)
+            loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+            self.optimizer.step()
+            # self.log_gradients_in_model(self.model, self.ticks)
+            av_values = torch.mean(values)
+            av_next_values = torch.mean(nextValues)
+            av_target_values = torch.mean(targetValues)
+            self.train_summary_writer.add_scalar('average_values', av_values, self.ticks)
+            self.train_summary_writer.add_scalar('average_next_values', av_next_values, self.ticks)
+            self.train_summary_writer.add_scalar('average_target_values', av_target_values, self.ticks)
+            self.train_summary_writer.add_scalar('loss', loss.item(), self.ticks)
+
+            self.stats = self.stats._append({
+                'tick': self.ticks,
+                'reward': av_reward.item(),
+                'values': av_values.item(),
+                'next_values': av_next_values.item(),
+                'target_values': av_target_values.item(),
+                'loss': loss.item()
+            }, ignore_index=True)
+
+            if self.ticks % update_target_every == 0:
+                del self.target_model
+                metadata = obs.metadata()
+                self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=self.output_size)
+                self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
+                self.target_model.load_state_dict(self.model.state_dict())
+            self.ticks += 1
         return loss.item()
 
+    def log_gradients_in_model(self, model, step):
+        for tag, value in model.named_parameters():
+            if value.grad is not None:
+                self.train_summary_writer.add_histogram(tag + "/grad", value.grad.cpu(), step)
     def model_snapshot(self, dir, iter):
         torch.save(self.model, f'{dir}/network-iteration-{iter}')
 
@@ -156,7 +209,21 @@ class CostRewardFunction:
 
     def compute(self, observation, next_observation):
         costs = next_observation["application"].x[:, 0]
-        return -50 * costs
+        return 1 - (torch.exp(2 * costs))
+        # return -costs
+        # rewards = -10 * torch.log(100 * costs + 1)
+        # return torch.where(rewards == 0, torch.tensor(50))
+        return rewards
+class MixedRewardFunction:
+
+    def __init__(self):
+        self.scale_factor = 50
+
+    def compute(self, observation, next_observation, alpha):
+        battery_status = -self.scale_factor * next_observation["application"].x[:, 0]
+        costs = -self.scale_factor * next_observation["application"].x[:, 1]
+        rewards = alpha * battery_status + (1 - alpha) * costs
+        return rewards
 
 # Just a quick test
 if __name__ == '__main__':
