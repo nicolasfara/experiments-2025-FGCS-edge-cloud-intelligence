@@ -8,6 +8,7 @@ import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.Molecules
 import it.unibo.alchemist.utils.PythonModules.rlUtils
 import learning.model.ExponentialDecay
+import me.shadaj.scalapy.py
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -34,12 +35,13 @@ class GraphDqnLauncher(
   private val logger: Logger = LoggerFactory.getLogger(this.getClass.getName)
   private val errorQueue = new ConcurrentLinkedQueue[Throwable]()
   implicit private val executionContext: ExecutionContext = ExecutionContext.global
-  private val learner = rlUtils.DQNTrainer(actionSpaceSize)
+  private var learners: Map[Long, py.Dynamic] = Map.empty
+
 
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    val decay = new ExponentialDecay(0.99, 0.1, 0.02)
+    val decay = new ExponentialDecay(0.99, 0.02, 0.02)
     Range.inclusive(1, globalRounds).foreach { iter =>
       println(s"Starting Global Round: $iter")
       println(s"Number of simulations: ${prod.size}")
@@ -52,13 +54,19 @@ class GraphDqnLauncher(
           val decayLayer = new DecayLayer(decay.value())
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
           val seed = instance(seedName).asInstanceOf[Double].toLong
-          learner.set_seed(seed)
-          val learnerLayer = new LearningLayer(learner)
+
+          learners.get(seed) match {
+            case Some(_) =>
+            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed))
+          }
+
+          val learnerLayer = new LearningLayer(learners.getOrElse(seed, throw new IllegalStateException("Learner not found!")))
           sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
           runSimulationSync(sim, index, instance)
         }
       decay.update()
     }
+    learners.foreach{ case (seed, l) => l.save_stats("data", seed)}
   }
 
   private def cartesianProduct(
