@@ -69,15 +69,25 @@ def load_data_from_csv(path, experiment, round):
 def plot(mean, std, round, experiment, metrics):
     for metric in metrics:
         plt.plot(mean['time'], mean[metric], color='#440154')
-        plt.fill_between(mean['time'], mean[metric] - std[metric], mean[metric] + std[metric], color='#440154', alpha=0.2)
+        # plt.fill_between(mean['time'], mean[metric] - std[metric], mean[metric] + std[metric], color='#440154', alpha=0.2)
         plt.title(f'Global Round {round}')
         plt.xlabel('Time')
         plt.ylabel(metric)
         plt.savefig(f'charts/{experiment}/globalRound-{round}_{metric}.pdf')
         plt.close()
 
+def plot_aggregated(mean, metric):
+    time = np.linspace(1, len(mean), len(mean))
+    plt.plot(time, mean, color='#440154')
+    plt.title(f'Aggregated {metric}')
+    plt.xlabel('Global Round')
+    plt.ylabel(metric)
+    plt.savefig(f'charts/aggregated_{metric}.pdf')
+    plt.close()
+
 if __name__ == '__main__':
-    experiments = ['battery', 'costs']
+    # experiments = ['battery', 'costs']
+    experiments = ['costs']
     charts_dir = 'charts/'
     Path(charts_dir).mkdir(parents=True, exist_ok=True)
     data_path = 'data/'
@@ -88,20 +98,30 @@ if __name__ == '__main__':
                     'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',
                     ],
         "costs": ['reward[min]', 'reward[max]', 'reward[mean]',
-                    'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',]
-    } 
+                    'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',],
+        "aggregated": ['reward[mean]', 'localComponentsPercentage[mean]']
+    }
 
-    for experiment in experiments: 
+    for experiment in experiments:
         Path(f'{charts_dir}{experiment}/').mkdir(parents=True, exist_ok=True)
 
-        for round in range(1, 16):
-            if round > 10 and "battery" in experiment:
-                break
+        aggregated_rewards = []
+        aggregated_local_components_percentage = []
+
+        for round in range(1, 61):
             dataframes = load_data_from_csv(data_path, experiment, round)
-            df_concat = pd.concat(dataframes)
-            by_row_index = df_concat.groupby(df_concat.index)
-            mean = by_row_index.mean()
-            mean = mean.dropna()
-            var = by_row_index.var()
-            var = var.dropna()
-            plot(mean, var, round, experiment, metrics[experiment])
+            df = dataframes[0]
+            df = df.dropna()
+            aggregated_rewards.append(df['reward[mean]'].mean())
+            aggregated_local_components_percentage.append(df['localComponentsPercentage[mean]'].mean())
+            plot(df, df, round, experiment, metrics[experiment])
+
+            # df_concat = pd.concat(dataframes).dropna().reset_index().groupby("index")
+            # mean = df_concat.mean()
+            # std = df_concat.std()
+            # aggregated_rewards.append(mean['reward[mean]'].mean())
+            # aggregated_local_components_percentage.append(mean['localComponentsPercentage[mean]'].mean())
+            # plot(mean, std, round, experiment, metrics[experiment])
+
+        plot_aggregated(aggregated_rewards, 'reward[mean]')
+        plot_aggregated(aggregated_local_components_percentage, 'localComponentsPercentage[mean]')
