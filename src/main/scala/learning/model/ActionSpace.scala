@@ -29,3 +29,7 @@ case class ActionSpace(components: Seq[Component], devicesCardinality: Int){
       } yield combo :+ element
     }
 }
+object Main extends App {
+  ActionSpace(Seq(Component("Gradient"), Component("Greater")), 3).actions.foreach(println(_))
+  println(ActionSpace(Seq(Component("Gradient"), Component("Greater")), 3).actions.size)
+}
