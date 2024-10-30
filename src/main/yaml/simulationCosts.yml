@@ -3,7 +3,7 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 2
+    max: 0
     step: 1
     default: 0
   globalRound: &globalRound
@@ -28,10 +28,10 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 15,
+    globalRounds: 100,
     seedName: "seed",
     globalBufferSize: 6000,
-    actionSpaceSize: 36
+    actionSpaceSize: 9
   }
 
 network-model:
@@ -90,7 +90,7 @@ environment:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
       type: LearningWithCosts
-      parameters: [*seed]
+      parameters: [*seed, 0.5]
 
 deployments:
   - type: Grid
@@ -106,8 +106,8 @@ deployments:
       [ 8.2152226, 6.3816613 ],
       [ 8.2366507, 6.3838339 ],
       [ 8.2146077, 6.3485146 ],
-      [ 8.2055562, 6.3778687 ],
-      [ 8.1924837, 6.3458967 ],
+      #[ 8.2055562, 6.3778687 ],
+      #[ 8.1924837, 6.3458967 ],
     ]
     programs:
       - *surrogateGradient
@@ -119,7 +119,7 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 300
+  parameters: 40
 
 export:
   - type: CSVExporter
