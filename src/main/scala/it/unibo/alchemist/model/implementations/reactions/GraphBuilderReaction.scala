@@ -59,7 +59,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected var currentAllocation: Option[Map[String, Int]] = None
 
-  private lazy val actionSpace = ActionSpace(components, edgeServerSize)
+//  private lazy val actionSpace = ActionSpace(components, infrastructuralNodes.size)
+  private lazy val actionSpace = ActionSpace(components, 2)
 
   private implicit def toMolecule(name: String): SimpleMolecule = new SimpleMolecule(name)
 
@@ -115,6 +116,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   protected def handleGraph(observation: py.Dynamic): Unit = {
 
     val actions = learner.select_action(observation, epsilon)
+//    println(environment.getSimulation.getTime.toDouble)
+//    println(s"[DEBUG] $actions")
 //    var actions = torch.full((1, 100), 0).flatten()
 //    val time = environment.getSimulation.getTime.toDouble
 //    if (time >= 15 && time < 30 ){
@@ -143,7 +146,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       case (Some(previousObs), Some(previousActions)) =>
         val rewards = computeRewards(previousObs, observation)
         learner.add_experience(previousObs, previousActions, rewards, observation)
-        learner.train_step_dqn(batch_size=32, gamma=0.99, update_target_every=10, seed=getSeed)
+        learner.train_step_dqn(batch_size=32, gamma=0.9, update_target_every=200, seed=getSeed)
       case _ =>
     }
     oldGraph = Some(observation)
