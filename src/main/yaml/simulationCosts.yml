@@ -28,9 +28,9 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 100,
+    globalRounds: 200,
     seedName: "seed",
-    globalBufferSize: 6000,
+    globalBufferSize: 400,
     actionSpaceSize: 9
   }
 
@@ -105,7 +105,7 @@ deployments:
     parameters: [
       [ 8.2152226, 6.3816613 ],
       [ 8.2366507, 6.3838339 ],
-      [ 8.2146077, 6.3485146 ],
+      #[ 8.2146077, 6.3485146 ],
       #[ 8.2055562, 6.3778687 ],
       #[ 8.1924837, 6.3458967 ],
     ]

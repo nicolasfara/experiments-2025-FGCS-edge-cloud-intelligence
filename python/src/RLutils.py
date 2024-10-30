@@ -3,7 +3,7 @@ from torch_geometric.data import HeteroData
 import random
 from torch_geometric.data import Data, Batch
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv, to_hetero, SAGEConv
+from torch_geometric.nn import GATConv, to_hetero, to_hetero_with_bases, SAGEConv, TransformerConv, GENConv
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
@@ -65,38 +65,40 @@ class GraphReplayBuffer:
 class GCN(torch.nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
-        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)
+        self.conv1 = GATConv((-1, -1), hidden_dim, bias=True, add_self_loops=False)
         # self.conv1 = SAGEConv((-1, -1), hidden_dim, bias=True)
         # self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         # self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.lin2 = torch.nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index)
-        x = torch.relu(x)
+    def forward(self, x, edge_index, edges_attr):
+        x = self.conv1(x, edge_index, edges_attr)
+        x = torch.tanh(x)
         # x = self.conv2(x, edge_index)
         # x = torch.relu(x)
         # x = self.conv3(x, edge_index)
         # x = torch.relu(x)
         x = self.lin1(x)
-        x = torch.relu(x)
+        x = torch.tanh(x)
         x = self.lin2(x)
         return x
 
 class DQNTrainer:
-    def __init__(self, output_size, seed):
+    def __init__(self, output_size, seed, target_frequency):
         self.train_summary_writer = SummaryWriter()
         self.output_size = output_size
         self.replay_buffer = GraphReplayBuffer(30000)
         self.random = random
-        self.hidden_size = 32
+        self.hidden_size = 4
         self.set_seed(seed)
         self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
+        self.target_model.eval()
         self.target_model.load_state_dict(self.model.state_dict())
-        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.00001)
-        self.ticks = 0
+        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.0001)
+        self.ticks = 1
+        self.target_frequency = target_frequency
+        self.next_update_at = target_frequency
         self.executedToHetero = False
         self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
 
@@ -126,7 +128,7 @@ class DQNTrainer:
         else:
             self.model.eval()
             with torch.no_grad():
-                return self.model(graph_observation.x_dict, graph_observation.edge_index_dict)['application'].max(dim=1)[1]
+                return self.model(graph_observation.x_dict, graph_observation.edge_index_dict, graph_observation.edges_attr_dict)['application'].max(dim=1)[1]
 
     def toHetero(self, data):
         if not self.executedToHetero:
@@ -135,7 +137,7 @@ class DQNTrainer:
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
             self.executedToHetero = True
 
-    def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10, seed=42):
+    def train_step_dqn(self, batch_size, gamma=0.99, seed=42):
         if len(self.replay_buffer) < batch_size:
             return 0
 
@@ -149,14 +151,15 @@ class DQNTrainer:
             obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
             av_reward = torch.mean(rewards)
             self.train_summary_writer.add_scalar('average_rewards', av_reward, self.ticks)
-            rewards = torch.nn.functional.normalize(rewards, dim=0)
-            values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
-            nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
+            #rewards = torch.nn.functional.normalize(rewards, dim=0)
+            values = self.model(obs.x_dict, obs.edge_index_dict, obs.edges_attr_dict)['application'].gather(1, actions.unsqueeze(1))
+            with torch.no_grad():
+                nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict, nextObs.edges_attr_dict)['application'].max(dim=1)[0]
             targetValues = rewards + (gamma * nextValues)
-            loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
+            loss = nn.MSELoss()(values, targetValues.unsqueeze(1))
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
             self.optimizer.step()
             # self.log_gradients_in_model(self.model, self.ticks)
             av_values = torch.mean(values)
@@ -175,13 +178,17 @@ class DQNTrainer:
                 'target_values': av_target_values.item(),
                 'loss': loss.item()
             }, ignore_index=True)
-
-            if self.ticks % update_target_every == 0:
+            self.train_summary_writer.add_scalar('update_target_every', self.target_frequency, self.ticks)
+            self.train_summary_writer.add_scalar('next_update_at', self.next_update_at, self.ticks)
+            self.next_update_at -= 1
+            if self.next_update_at == 0:
                 del self.target_model
                 metadata = obs.metadata()
                 self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=self.output_size)
                 self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
                 self.target_model.load_state_dict(self.model.state_dict())
+                self.target_model.eval()
+                self.next_update_at = self.target_frequency
             self.ticks += 1
         return loss.item()
 
@@ -257,17 +264,18 @@ if __name__ == '__main__':
     # Checks that the GCN is correctly created
     model = GCN(hidden_dim=32, output_dim=8)
     model = to_hetero(model, graph.metadata(), aggr='sum')
-    output = model(graph.x_dict, graph.edge_index_dict)
+    print(graph)
+    output = model(graph.x_dict, graph.edge_index_dict, graph.edges_attr_dict)
     print(output['application'])
     print('OK!')
 
     print('-------------------------------- Checking Learning -------------------------------')
     # Checks learning step
-    trainer = DQNTrainer(8)
+    trainer = DQNTrainer(8, 43, 10)
     for i in range(10):
         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
     trainer.toHetero(graph)
-    trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
+    trainer.train_step_dqn(batch_size=5, gamma=0.99)
     print(trainer.select_action(graph, 0.0))
     print('OK!')
 

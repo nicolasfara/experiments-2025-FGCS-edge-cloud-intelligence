@@ -11,25 +11,16 @@ import me.shadaj.scalapy.py
 class LearningWithCosts[T, P <: Position[P]](
     environment: Environment[T, P],
     distribution: TimeDistribution[T],
-    seed: Int
+    seed: Int,
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val rewardFunction = rlUtils.CostRewardFunction()
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
-    if(!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
-      val componentsAllocation = getAllocator(node)
-        .getComponentsAllocation
+    if (!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
+      val componentsAllocation = getAllocator(node).getComponentsAllocation
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
-
-      val allocation = getAllocator(node)
-        .getComponentsAllocation
-        .values
-        .map{
-          case id if id == node.getId => 1.0
-          case _ => 0.0
-        }
 
       val deltaCost = componentsAllocation
         .filterNot { case (_, edgeServerId) => edgeServerId == node.getId }
@@ -38,12 +29,11 @@ class LearningWithCosts[T, P <: Position[P]](
         .map(_.deltaCostPerDevice(node.getId))
         .sum
 
-      //Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
-      Vector(Seq(deltaCost, localComponents) ++ allocation)
-    }
-    else {
+      Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
+      // Vector(Seq(deltaCost, localComponents) ++ allocation)
+    } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
-      Vector(Seq(1))
+      Vector(Seq(cost))
     }
   }
 
@@ -60,7 +50,7 @@ class LearningWithCosts[T, P <: Position[P]](
     val localComponentsPercentage = localComponents / components.size.toDouble
     node.setConcentration(
       new SimpleMolecule(Molecules.localComponentsPercentage),
-      localComponentsPercentage.asInstanceOf[T]
+      localComponentsPercentage.asInstanceOf[T],
     )
   }
 
@@ -70,7 +60,8 @@ class LearningWithCosts[T, P <: Position[P]](
     //    println(s"[DEBUG] Rewards: $rewards")
 
     rewards
-      .tolist().as[List[Double]]
+      .tolist()
+      .as[List[Double]]
       .zipWithIndex
       .foreach { case (reward, index) =>
         applicationNodes(index).setConcentration(new SimpleMolecule(Molecules.reward), reward.asInstanceOf[T])
