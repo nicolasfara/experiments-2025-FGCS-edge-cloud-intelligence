@@ -6,12 +6,14 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import it.unibo.alchemist.utils.Molecules
-import learning.model.{ActionSpace, Component, EdgeServer, MySelf, PairComponentDevice}
+import learning.model.{ActionSpace, Cloud, Component, EdgeServer, MySelf, PairComponentDevice}
 
 import scala.language.implicitConversions
 import me.shadaj.scalapy.py.SeqConverters
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.readwrite.{Reader, Writer}
+
+import scala.util.Random
 
 trait Tensor
 case class Vector(data: Seq[Double]) extends Tensor
@@ -29,12 +31,17 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     distribution: TimeDistribution[T],
 ) extends AbstractGlobalReaction(environment, distribution) {
 
-  private lazy val infrastructuralNodes: Seq[Node[T]] = nodes
+  protected lazy val cloudNodes: Seq[Node[T]] = nodes
+    .filter(n => n.contains("cloudDevice"))
+    .sortBy(node => node.getId)
+
+  protected lazy val infrastructuralNodes: Seq[Node[T]] = nodes
     .filter(n => n.contains(Molecules.infrastructural))
     .sortBy(node => node.getId)
 
   protected lazy val applicationNodes: Seq[Node[T]] = nodes
     .filterNot(n => n.contains(Molecules.infrastructural))
+    .filterNot(n => n.contains("cloudDevice"))
     .sortBy(node => node.getId)
 
   protected lazy val learner: py.Dynamic = environment
@@ -51,6 +58,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private lazy val edgeServerSize = infrastructuralNodes.size
 
+  private lazy val random = new Random(getSeed)
+
   protected lazy val components: Seq[Component] = getComponents
 
   private var oldGraph: Option[py.Dynamic] = None
@@ -59,8 +68,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected var currentAllocation: Option[Map[String, Int]] = None
 
-//  private lazy val actionSpace = ActionSpace(components, infrastructuralNodes.size)
-  private lazy val actionSpace = ActionSpace(components, 2)
+  private lazy val actionSpace = ActionSpace(components)
+
+  private var executedToHetero = false
 
   private implicit def toMolecule(name: String): SimpleMolecule = new SimpleMolecule(name)
 
@@ -72,14 +82,15 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private def createGraph(): py.Dynamic = {
 
+    val remoteNodes = infrastructuralNodes ++ cloudNodes
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
-    val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId - applicationNodes.size), infrastructuralNodes.map(_.getId - applicationNodes.size))
-    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId - applicationNodes.size))
+    val adjacencyInfraToInfra = getEdgeIndexes(remoteNodes.map(_.getId - applicationNodes.size), remoteNodes.map(_.getId - applicationNodes.size))
+    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), remoteNodes.map(_.getId - applicationNodes.size))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
     val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
     val pyFeaturesApplication = toFeatures(applicationNodes)
-    val pyFeaturesInfrastructural = toFeatures(infrastructuralNodes)
+    val pyFeaturesInfrastructural = toFeatures(remoteNodes)
     val featureAppToApp = createFeatureTensor(adjacencyAppToApp)
     val featureInfraToInfra = createFeatureTensor(adjacencyInfraToInfra)
     val featureAppToInfra = createFeatureTensor(adjacencyAppToInfra)
@@ -97,7 +108,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   }
 
   private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
-    val tensors = data.map(getNodeFeature).map(toTorchTensor(_, index = false))
+    val features = data.map(getNodeFeature)
+    val m = features.map(_.data.size)
+    val tensors = features.map(toTorchTensor(_, index = false))
     tensors
       .tail
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
@@ -114,7 +127,10 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector
 
   protected def handleGraph(observation: py.Dynamic): Unit = {
-
+   if(!executedToHetero) {
+     learner.toHetero(observation)
+     executedToHetero = true
+   }
     val actions = learner.select_action(observation, epsilon)
 //    println(environment.getSimulation.getTime.toDouble)
 //    println(s"[DEBUG] $actions")
@@ -125,6 +141,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 //    } else {
 //      actions = torch.full((1, 100), 0).flatten()
 //    }
+
     actions
       .tolist().as[List[Int]]
       .zipWithIndex
@@ -133,8 +150,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
         val newComponentsAllocation = actionSpace.actions(actionIndex)
           .map { case PairComponentDevice(component, device) =>
             val deviceID = device match {
-              case MySelf() => node.getId
-              case EdgeServer(id) => id + applicationNodes.size
+              case MySelf => node.getId
+              case EdgeServer => getEdgeServer
+              case Cloud => getCloud
             }
             component.id -> deviceID
           }
@@ -146,12 +164,16 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       case (Some(previousObs), Some(previousActions)) =>
         val rewards = computeRewards(previousObs, observation)
         learner.add_experience(previousObs, previousActions, rewards, observation)
-        learner.train_step_dqn(batch_size=32, gamma=0.9, update_target_every=200, seed=getSeed)
+        learner.train_step_dqn(batch_size=32, gamma=0.98, seed=getSeed)
       case _ =>
     }
     oldGraph = Some(observation)
     oldActions = Some(actions)
   }
+
+  private def getEdgeServer: Int = random.shuffle(infrastructuralNodes).head.getId
+
+  private def getCloud: Int = random.shuffle(cloudNodes).head.getId
 
   private def filterNeighbors(neighbors: Seq[Int], nodes: Seq[Int]): Seq[Int] = {
     neighbors.filter(neigh => nodes.contains(neigh))
@@ -191,7 +213,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
   }
 
-  protected def getComponents: Seq[Component] = {
+  private def getComponents: Seq[Component] = {
     getAllocator(applicationNodes.head)
       .getComponentsAllocation
       .keys

@@ -41,7 +41,7 @@ class GraphDqnLauncher(
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    val decay = new ExponentialDecay(0.99, 0.02, 0.02)
+    val decay = new ExponentialDecay(0.99, 0.4, 0.02)
     Range.inclusive(1, globalRounds).foreach { iter =>
       println(s"Starting Global Round: $iter")
       println(s"Number of simulations: ${prod.size}")
@@ -57,7 +57,7 @@ class GraphDqnLauncher(
 
           learners.get(seed) match {
             case Some(_) =>
-            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed))
+            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed, 1000))
           }
 
           val learnerLayer = new LearningLayer(learners.getOrElse(seed, throw new IllegalStateException("Learner not found!")))

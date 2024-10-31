@@ -8,18 +8,23 @@ package learning.model
 
 case class Component(id: String)
 sealed trait Device
-case class MySelf() extends Device
-case class EdgeServer(id: Int) extends Device
+case object MySelf extends Device
+case object EdgeServer extends Device
+case object Cloud extends Device
+
+
+case class Cloud() extends Device
 
 case class PairComponentDevice(component: Component, device: Device)
 
-case class ActionSpace(components: Seq[Component], devicesCardinality: Int){
+case class ActionSpace(components: Seq[Component]){
 
-  private val devices = Range(0, devicesCardinality)
-    .map(i => EdgeServer(i))
-    .prepended(MySelf())
+  private val locations = Seq(MySelf, EdgeServer, Cloud)
 
-  private val pairs = components.map(c => devices.map(d => PairComponentDevice(c, d)))
+  private val pairs = components
+    .map(c =>
+      locations.map(l => PairComponentDevice(c, l))
+    )
 
   val actions: Seq[List[PairComponentDevice]] =
     pairs.foldLeft(Seq(List.empty[PairComponentDevice])) {
@@ -30,6 +35,7 @@ case class ActionSpace(components: Seq[Component], devicesCardinality: Int){
     }
 }
 object Main extends App {
-  ActionSpace(Seq(Component("Gradient"), Component("Greater")), 3).actions.foreach(println(_))
-  println(ActionSpace(Seq(Component("Gradient"), Component("Greater")), 3).actions.size)
+  val as = ActionSpace(Seq(Component("Gradient"), Component("Greater")))
+  as.actions.foreach(println(_))
+  println(as.actions.size)
 }

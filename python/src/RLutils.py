@@ -74,31 +74,33 @@ class GCN(torch.nn.Module):
 
     def forward(self, x, edge_index):
         x = self.conv1(x, edge_index)
-        x = torch.relu(x)
+        x = torch.tanh(x)
         # x = self.conv2(x, edge_index)
         # x = torch.relu(x)
         # x = self.conv3(x, edge_index)
         # x = torch.relu(x)
         x = self.lin1(x)
-        x = torch.relu(x)
+        x = torch.tanh(x)
         x = self.lin2(x)
         return x
 
 class DQNTrainer:
-    def __init__(self, output_size, seed):
+    def __init__(self, output_size, seed, target_frequency):
         self.train_summary_writer = SummaryWriter()
         self.output_size = output_size
-        self.replay_buffer = GraphReplayBuffer(30000)
+        self.replay_buffer = GraphReplayBuffer(400)
         self.random = random
-        self.hidden_size = 32
+        self.hidden_size = 8
         self.set_seed(seed)
         self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.00001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.001)
         self.ticks = 0
         self.executedToHetero = False
         self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
+        self.target_frequency = target_frequency
+        self.next_update_at = target_frequency
 
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
@@ -135,7 +137,7 @@ class DQNTrainer:
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
             self.executedToHetero = True
 
-    def train_step_dqn(self, batch_size, gamma=0.99, update_target_every=10, seed=42):
+    def train_step_dqn(self, batch_size, gamma=0.99, seed=42):
         if len(self.replay_buffer) < batch_size:
             return 0
 
@@ -153,10 +155,10 @@ class DQNTrainer:
             values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
             nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
             targetValues = rewards + (gamma * nextValues)
-            loss = nn.SmoothL1Loss()(values, targetValues.unsqueeze(1))
+            loss = nn.MSELoss()(values, targetValues.unsqueeze(1))
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
             self.optimizer.step()
             # self.log_gradients_in_model(self.model, self.ticks)
             av_values = torch.mean(values)
@@ -166,7 +168,7 @@ class DQNTrainer:
             self.train_summary_writer.add_scalar('average_next_values', av_next_values, self.ticks)
             self.train_summary_writer.add_scalar('average_target_values', av_target_values, self.ticks)
             self.train_summary_writer.add_scalar('loss', loss.item(), self.ticks)
-
+            self.next_update_at -= 1
             self.stats = self.stats._append({
                 'tick': self.ticks,
                 'reward': av_reward.item(),
@@ -176,13 +178,15 @@ class DQNTrainer:
                 'loss': loss.item()
             }, ignore_index=True)
 
-            if self.ticks % update_target_every == 0:
+            if self.next_update_at == 0:
                 del self.target_model
                 metadata = obs.metadata()
                 self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=self.output_size)
                 self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
                 self.target_model.load_state_dict(self.model.state_dict())
             self.ticks += 1
+            self.target_model.eval()
+            self.next_update_at = self.target_frequency
         return loss.item()
 
     def log_gradients_in_model(self, model, step):
@@ -220,65 +224,66 @@ class MixedRewardFunction:
         self.scale_factor = 50
 
     def compute(self, observation, next_observation, alpha):
-        battery_status = -self.scale_factor * next_observation["application"].x[:, 0]
-        costs = -self.scale_factor * next_observation["application"].x[:, 1]
+        battery_status = 1 - (torch.exp(2 * next_observation["application"].x[:, 1]))
+        costs = 1 - (torch.exp(2 * next_observation["application"].x[:, 0]))
         rewards = alpha * battery_status + (1 - alpha) * costs
+        raise Exception(rewards)
         return rewards
 
 # Just a quick test
-if __name__ == '__main__':
-
-    graph = create_graph(
-        app_features=torch.tensor([[100.0, 2.0], [100.0, 1.0], [3.0, 1.0]]),
-        infrastructural_features=torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
-        edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
-        edges_app_to_app=torch.tensor([[0], [1]]),
-        edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
-        edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-        edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
-        edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
-    )
-
-    print(graph['application'].x.shape[0])
-
-    graph2 = create_graph(
-        app_features=torch.tensor([[100.0, 2.0], [70.0, 1.0], [30.0, 1.0]]),
-        infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-        edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
-        edges_app_to_app=torch.tensor([[0], [1]]),
-        edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
-        edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
-        edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
-        edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
-    )
-
-    print('---------------------------------- Checking GCN ----------------------------------')
-
-    # Checks that the GCN is correctly created
-    model = GCN(hidden_dim=32, output_dim=8)
-    model = to_hetero(model, graph.metadata(), aggr='sum')
-    output = model(graph.x_dict, graph.edge_index_dict)
-    print(output['application'])
-    print('OK!')
-
-    print('-------------------------------- Checking Learning -------------------------------')
-    # Checks learning step
-    trainer = DQNTrainer(8)
-    for i in range(10):
-        trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
-    trainer.toHetero(graph)
-    trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
-    print(trainer.select_action(graph, 0.0))
-    print('OK!')
-
-    print('---------------------------- Checking RF Battery -----------------------------')
-    reward_function = BatteryRewardFunction()
-    diff = reward_function.compute_difference(graph, graph2)
-    th = reward_function.compute_threshold(graph, graph2)
-    print(diff)
-    print(th)
-
-    print('---------------------------- Checking RF Costs -----------------------------')
-    reward_function = CostRewardFunction()
-    reward = reward_function.compute(graph, graph2)
-    print(reward)
+# if __name__ == '__main__':
+#
+#     graph = create_graph(
+#         app_features=torch.tensor([[100.0, 2.0], [100.0, 1.0], [3.0, 1.0]]),
+#         infrastructural_features=torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
+#         edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
+#         edges_app_to_app=torch.tensor([[0], [1]]),
+#         edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
+#         edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+#         edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
+#         edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
+#     )
+#
+#     print(graph['application'].x.shape[0])
+#
+#     graph2 = create_graph(
+#         app_features=torch.tensor([[100.0, 2.0], [70.0, 1.0], [30.0, 1.0]]),
+#         infrastructural_features=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+#         edges_app_to_infrastructural=torch.tensor([[0, 1, 0], [1, 2, 2]]),
+#         edges_app_to_app=torch.tensor([[0], [1]]),
+#         edges_infrastructural_to_infrastructural=torch.tensor([[1], [2]]),
+#         edges_features_app_to_infrastructural=torch.tensor([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+#         edges_features_app_to_app=torch.tensor([[1.0, 2.0]]),
+#         edges_features_infrastructural_to_infrastructural=torch.tensor([[2.0, 1.0]])
+#     )
+#
+#     print('---------------------------------- Checking GCN ----------------------------------')
+#
+#     # Checks that the GCN is correctly created
+#     model = GCN(hidden_dim=32, output_dim=8)
+#     model = to_hetero(model, graph.metadata(), aggr='sum')
+#     output = model(graph.x_dict, graph.edge_index_dict)
+#     print(output['application'])
+#     print('OK!')
+#
+#     print('-------------------------------- Checking Learning -------------------------------')
+#     # Checks learning step
+#     trainer = DQNTrainer(8)
+#     for i in range(10):
+#         trainer.add_experience(graph, torch.tensor([1, 2, 3]), torch.tensor([1.0, 0.0, -10.0]), graph2)
+#     trainer.toHetero(graph)
+#     trainer.train_step_dqn(batch_size=5, gamma=0.99, update_target_every=10)
+#     print(trainer.select_action(graph, 0.0))
+#     print('OK!')
+#
+#     print('---------------------------- Checking RF Battery -----------------------------')
+#     reward_function = BatteryRewardFunction()
+#     diff = reward_function.compute_difference(graph, graph2)
+#     th = reward_function.compute_threshold(graph, graph2)
+#     print(diff)
+#     print(th)
+#
+#     print('---------------------------- Checking RF Costs -----------------------------')
+#     reward_function = CostRewardFunction()
+#     reward = reward_function.compute(graph, graph2)
+#     print(reward)

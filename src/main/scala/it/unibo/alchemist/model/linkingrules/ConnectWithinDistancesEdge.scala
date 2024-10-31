@@ -8,9 +8,10 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava, 
 
 class ConnectWithinDistancesEdge[T, P <: Position[P]](private val radius: Double) extends LinkingRule[T, P] {
   private val infrastructuralMolecule = new SimpleMolecule("infrastructuralDevice")
+  private val cloudMolecule = new SimpleMolecule("cloudDevice")
 
   override def computeNeighborhood(node: Node[T], environment: Environment[T, P]): Neighborhood[T] = {
-    if (node.contains(infrastructuralMolecule)) {
+    if (node.contains(infrastructuralMolecule) || node.contains(cloudMolecule)) {
       Neighborhoods.make(environment, node, environment.getNodes)
     } else {
       val neighbors = environment.getNodesWithinRange(node, radius).iterator().asScala.toList

@@ -19,7 +19,7 @@ class BatteryEquippedDevice[T, P <: Position[P]](
     private val node: Node[T],
     private val batteryCapacity: Double, // Battery capacity in mAh
     private val deviceEnergyPerInstruction: Double, // Energy consumed per instruction in nJ
-    private val softwareComponentsInstructions: Map[String, Long], // Instructions per software component
+    val softwareComponentsInstructions: Map[String, Long], // Instructions per software component
     private val startupCharge: Double = 100.0, // Initial battery charge in %
     private val batteryVoltage: Double = 3.7, // Battery voltage in V
     private val rechargeRate: Double = 0.5, // Recharge rate in C-rates
