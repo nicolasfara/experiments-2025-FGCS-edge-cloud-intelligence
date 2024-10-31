@@ -13,22 +13,22 @@ variables:
     type: ArbitraryVariable
     parameters: [ 1, [ 1, 2, 3 ] ]
   #------------------------------------------------------------------
-  gradientProgram: &gradientProgram
+  densityEstimationProgram: &densityEstimationProgram
     language: scala
-    formula: "\"it.unibo.alchemist.Gradient\""
+    formula: "\"it.unibo.alchemist.DensityEstimation\""
   greaterDistance: &greaterDistance
     language: scala
     formula: "\"it.unibo.alchemist.GreaterDistance\""
   programDag: &programDag
     language: scala
-    formula: Map(gradientProgram -> Set(greaterDistance))
+    formula: Map(densityEstimationProgram -> Set(greaterDistance))
   osInstructions: &osInstructions
     language: scala
     formula: 100_000L
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
-      Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
+      Map(densityEstimationProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
 
 seeds:
   scenario: *seed
@@ -42,12 +42,12 @@ _constants:
   retentionTime: &retentionTime 25.0
 
 _programs:
-  - program: &surrogateGradient
+  - program: &surrogateDensityEstimation
       - time-distribution: 1
         type: Event
         actions:
           - type: RunSurrogateScafiProgram
-            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+            parameters: [ *densityEstimationProgram, *retentionTime, *programDag ]
       - program: sendSurrogate
   - program: &surrogateGreater
     - time-distribution: 1
@@ -61,7 +61,7 @@ _programs:
         type: Event
         actions:
           - type: RunApplicationScafiProgram
-            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+            parameters: [ *densityEstimationProgram, *retentionTime, *programDag ]
       - program: send
   - program: &greater
       - time-distribution: 1
@@ -131,7 +131,7 @@ deployments:
       [ 8.1924837, 6.3458967 ],
     ]
     programs:
-      - *surrogateGradient
+      - *surrogateDensityEstimation
       - *surrogateGreater
       - *payPerUseDevice
     contents:
