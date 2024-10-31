@@ -31,11 +31,11 @@ seeds:
 launcher:
   type: GraphDqnLauncher
   parameters: {
-    batch: ["seed"],
-    globalRounds: 10,
+    batch: [ "seed" ],
+    globalRounds: 30,
     seedName: "seed",
-    globalBufferSize: 6000,
-    actionSpaceSize: 36
+    globalBufferSize: 400,
+    actionSpaceSize: 9
   }
 
 network-model:
@@ -110,9 +110,9 @@ deployments:
     parameters: [
       [ 8.2152226, 6.3816613 ],
       [ 8.2366507, 6.3838339 ],
-      [ 8.2146077, 6.3485146 ],
-      [ 8.2055562, 6.3778687 ],
-      [ 8.1924837, 6.3458967 ],
+      #[ 8.2146077, 6.3485146 ],
+      #[ 8.2055562, 6.3778687 ],
+      #[ 8.1924837, 6.3458967 ],
     ]
     programs:
       - *surrogateGradient
@@ -123,7 +123,7 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 300
+  parameters: 40
 
 export:
   - type: CSVExporter

@@ -5,7 +5,7 @@ variables:
     min: 0
     max: 0
     step: 1
-    default: 0
+    default: 42
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
@@ -28,7 +28,7 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 200,
+    globalRounds: 30,
     seedName: "seed",
     globalBufferSize: 400,
     actionSpaceSize: 9
