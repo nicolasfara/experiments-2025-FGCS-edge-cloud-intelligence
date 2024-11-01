@@ -109,7 +109,6 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
     val features = data.map(getNodeFeature)
-    val m = features.map(_.data.size)
     val tensors = features.map(toTorchTensor(_, index = false))
     tensors
       .tail
