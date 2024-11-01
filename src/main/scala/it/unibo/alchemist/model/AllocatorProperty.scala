@@ -83,8 +83,6 @@ class AllocatorProperty[T, P <: Position[P]](
       allocation: Map[ComponentId, Int],
       neighbors: Set[Int],
   ): Option[AllocationException] = {
-    println(s"Checking validity in node ${node.getId}")
-    println(environment.getNeighborhood(node).getNeighbors.asScala.map(_.getId))
     val invalidComponents = allocation.filterNot { case (_, value) => neighbors.contains(value) }
     if (invalidComponents.nonEmpty) {
       Some(AllocationException(s"Invalid allocation for components: ${invalidComponents.mkString(", ")}"))
