@@ -15,7 +15,10 @@ class ConnectWithinDistancesEdge[T, P <: Position[P]](private val radius: Double
       Neighborhoods.make(environment, node, environment.getNodes)
     } else {
       val neighbors = environment.getNodesWithinRange(node, radius).iterator().asScala.toList
-      val surrogates = environment.getNodes.asScala.filter(_.contains(infrastructuralMolecule)).toList
+      val surrogates = environment
+        .getNodes
+        .asScala
+        .filter(n => n.contains(infrastructuralMolecule) || n.contains(cloudMolecule)).toList
       val nodes = neighbors ++ surrogates
       Neighborhoods.make(environment, node, nodes.asJava)
     }
