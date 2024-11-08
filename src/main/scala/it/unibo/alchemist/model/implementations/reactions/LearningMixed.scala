@@ -31,7 +31,7 @@ class LearningMixed[T, P <: Position[P]](
       val cloudDeltaCost = getDeltaCost(cloudNodes, node.getId)
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
       val componentsLocation: Seq[Double] = componentsAllocation
-        .map { case (_, where ) =>
+        .map { case (_, where) =>
           where match {
             case _ if infrastructuralNodes.map(_.getId).contains(where)   => 1
             case _ if cloudNodes.map(_.getId).contains(where)             => 2
@@ -45,9 +45,9 @@ class LearningMixed[T, P <: Position[P]](
         .values
         .map(_.toDouble)
         .toSeq
-      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost,
-        (localComponents / totalComponents).toDouble, (edgeServerComponents / totalComponents).toDouble,
-        (cloudComponents / totalComponents).toDouble) ++ componentsLocation ++ componentsWeight
+      val f = Seq(edgeServerDeltaCost, cloudDeltaCost, localComponents)
+       // (localComponents / totalComponents).toDouble)// (edgeServerComponents / totalComponents).toDouble,
+        // (cloudComponents / totalComponents).toDouble) //++ componentsLocation ++ componentsWeight
       Vector(f)
     }
     else {
