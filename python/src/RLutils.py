@@ -65,15 +65,15 @@ class GraphReplayBuffer:
 class GCN(torch.nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
-        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)
+        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True, edge_dim=-1)
         # self.conv1 = SAGEConv((-1, -1), hidden_dim, bias=True)
         # self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         # self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         self.lin1 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.lin2 = torch.nn.Linear(hidden_dim, output_dim)
 
-    def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index)
+    def forward(self, x, edge_index, edge_feature):
+        x = self.conv1(x, edge_index, edge_feature)
         x = torch.tanh(x)
         # x = self.conv2(x, edge_index)
         # x = torch.relu(x)
@@ -95,7 +95,8 @@ class DQNTrainer:
         self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.01)
+        self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.9)
         self.ticks = 0
         self.executedToHetero = False
         self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
@@ -128,7 +129,7 @@ class DQNTrainer:
         else:
             self.model.eval()
             with torch.no_grad():
-                return self.model(graph_observation.x_dict, graph_observation.edge_index_dict)['application'].max(dim=1)[1]
+                return self.model(graph_observation.x_dict, graph_observation.edge_index_dict, graph_observation.edges_attr_dict)['application'].max(dim=1)[1]
 
     def toHetero(self, data):
         if not self.executedToHetero:
@@ -152,8 +153,8 @@ class DQNTrainer:
             av_reward = torch.mean(rewards)
             self.train_summary_writer.add_scalar('average_rewards', av_reward, self.ticks)
             rewards = torch.nn.functional.normalize(rewards, dim=0)
-            values = self.model(obs.x_dict, obs.edge_index_dict)['application'].gather(1, actions.unsqueeze(1))
-            nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict)['application'].max(dim=1)[0].detach()
+            values = self.model(obs.x_dict, obs.edge_index_dict, obs.edges_attr_dict)['application'].gather(1, actions.unsqueeze(1))
+            nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict, nextObs.edges_attr_dict)['application'].max(dim=1)[0].detach()
             targetValues = rewards + (gamma * nextValues)
             loss = nn.MSELoss()(values, targetValues.unsqueeze(1))
             self.optimizer.zero_grad()
@@ -187,6 +188,7 @@ class DQNTrainer:
             self.ticks += 1
             self.target_model.eval()
             self.next_update_at = self.target_frequency
+        self.lr_scheduler.step()
         return loss.item()
 
     def log_gradients_in_model(self, model, step):
@@ -218,16 +220,24 @@ class CostRewardFunction:
         # rewards = -10 * torch.log(100 * costs + 1)
         # return torch.where(rewards == 0, torch.tensor(50))
         return rewards
+
+
 class MixedRewardFunction:
 
     def __init__(self):
         self.scale_factor = 50
 
     def compute(self, observation, next_observation, alpha):
-        battery_status = 1 - (torch.exp(2 * next_observation["application"].x[:, 1]))
-        costs = 1 - (torch.exp(2 * next_observation["application"].x[:, 0]))
-        rewards = alpha * battery_status + (1 - alpha) * costs
-        raise Exception(rewards)
+        # battery_status = 1 - (torch.exp(2 * next_observation["application"].x[:, 1]))
+        edge_server_costs = next_observation["application"].x[:, 0]
+        cloud_costs = next_observation["application"].x[:, 1]
+
+        rewards_edge = torch.where(edge_server_costs > 0, torch.tensor(-1), torch.tensor(0))
+        rewards_cloud = torch.where(cloud_costs > 0, torch.tensor(-1), torch.tensor(0))
+        rewards = torch.add(rewards_edge, rewards_cloud)
+        # rewards = 1 - (torch.exp(2 * (edge_server_costs + cloud_costs)))
+        # rewards = alpha * battery_status + (1 - alpha) * costs
+        # raise Exception(rewards)
         return rewards
 
 # Just a quick test
