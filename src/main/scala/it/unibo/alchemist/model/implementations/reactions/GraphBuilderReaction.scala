@@ -6,7 +6,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import it.unibo.alchemist.utils.Molecules
-import learning.model.{ActionSpace, Cloud, Component, EdgeServer, MySelf, PairComponentDevice}
+import learning.model.{ActionSpace, Cloud, Component, DoNothing, EdgeServer, MySelf, OffloadingAction, PairComponentDevice}
 
 import scala.language.implicitConversions
 import me.shadaj.scalapy.py.SeqConverters
@@ -146,17 +146,20 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       .zipWithIndex
       .foreach { case (actionIndex, nodeIndex) =>
         val node = applicationNodes(nodeIndex)
-        val newComponentsAllocation = actionSpace.actions(actionIndex)
-          .map { case PairComponentDevice(component, device) =>
-            val deviceID = device match {
-              case MySelf => node.getId
-              case EdgeServer => getEdgeServer
-              case Cloud => getCloud
-            }
-            component.id -> deviceID
-          }
-          .toMap
-        updateAllocation(node, newComponentsAllocation)
+        actionSpace.actions(actionIndex) match {
+          case OffloadingAction(allocation) =>
+            val newComponentsAllocation = allocation
+            .map { case PairComponentDevice(component, device) =>
+              val deviceID = device match {
+                case MySelf => node.getId
+                case EdgeServer => getEdgeServer
+                case Cloud => getCloud
+              }
+              component.id -> deviceID
+            }.toMap
+            updateAllocation(node, newComponentsAllocation)
+          case DoNothing =>
+        }
       }
 
     (oldGraph, oldActions) match {
