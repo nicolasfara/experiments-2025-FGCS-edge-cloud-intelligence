@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
 import math
 import numpy as np
+import pickle
 
 def create_graph(
         app_features,
@@ -45,6 +46,23 @@ class GraphReplayBuffer:
     def size(self):
         return len(self.buffer)
 
+    def dump(self):
+        with open('data/replay-buffer.pkl', 'wb') as f:
+            pickle.dump({
+                'capacity': self.capacity,
+                'buffer': self.buffer,
+                'position': self.position
+            }, f)
+
+    @classmethod
+    def load(cls):
+        with open('data/replay-buffer.pkl', 'rb') as f:
+            data = pickle.load(f)
+            buffer = cls(data['capacity'])
+            buffer.buffer = data['buffer']
+            buffer.position = data['position']
+        return buffer
+
     def push(self, graph_observation, actions, rewards, next_graph_observation):
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
@@ -65,7 +83,7 @@ class GraphReplayBuffer:
 class GCN(torch.nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super(GCN, self).__init__()
-        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True, edge_dim=-1)
+        self.conv1 = GATConv((-1, -1), hidden_dim, add_self_loops=False, bias=True)#, edge_dim=-1)
         # self.conv1 = SAGEConv((-1, -1), hidden_dim, bias=True)
         # self.conv2 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
         # self.conv3 = GATConv(hidden_dim, hidden_dim, add_self_loops=False, bias=True)
@@ -88,15 +106,15 @@ class DQNTrainer:
     def __init__(self, output_size, seed, target_frequency):
         self.train_summary_writer = SummaryWriter()
         self.output_size = output_size
-        self.replay_buffer = GraphReplayBuffer(400)
+        self.replay_buffer = GraphReplayBuffer(4000)
         self.random = random
-        self.hidden_size = 8
+        self.hidden_size = 64
         self.set_seed(seed)
         self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model.load_state_dict(self.model.state_dict())
-        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.01)
-        self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.9)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), 0.001)
+        # self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.9)
         self.ticks = 0
         self.executedToHetero = False
         self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
@@ -108,6 +126,10 @@ class DQNTrainer:
 
     def save_stats(self, path, seed):
         self.stats.to_csv(f'{path}/stats-seed_{seed}.csv', index=False)
+        self.replay_buffer.dump()
+
+    def load_replay_buffer_from_pickle(self):
+        self.replay_buffer = GraphReplayBuffer.load()
 
     def set_seed(self, seed):
         self.random.seed(seed)
@@ -131,35 +153,40 @@ class DQNTrainer:
             with torch.no_grad():
                 return self.model(graph_observation.x_dict, graph_observation.edge_index_dict, graph_observation.edges_attr_dict)['application'].max(dim=1)[1]
 
+    def get_data_from_buffer(self, size=1):
+        return self.replay_buffer.sample(size)[0]
+
     def toHetero(self, data):
         if not self.executedToHetero:
             metadata = data.metadata()
             self.model = to_hetero(self.model, metadata, aggr='sum')
             self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
             self.executedToHetero = True
+            self.optimizer = torch.optim.Adam(self.model.parameters(), 0.001)
 
     def train_step_dqn(self, batch_size, gamma=0.99, seed=42):
         if len(self.replay_buffer) < batch_size:
             return 0
 
         # epochs = min(math.ceil(self.replay_buffer.size() / 2), 50)
-        epochs = 20
+        epochs = 1
         self.train_summary_writer.add_scalar('buffer size', self.replay_buffer.size(), self.ticks)
         self.train_summary_writer.add_scalar('epochs', epochs, self.ticks)
 
-        for _ in range(epochs):
+        for epoch in range(epochs):
+            print(epoch)
             self.model.train()
             obs, actions, rewards, nextObs = self.replay_buffer.sample(batch_size)
             av_reward = torch.mean(rewards)
             self.train_summary_writer.add_scalar('average_rewards', av_reward, self.ticks)
-            rewards = torch.nn.functional.normalize(rewards, dim=0)
+            # rewards = torch.nn.functional.normalize(rewards, dim=0)]
             values = self.model(obs.x_dict, obs.edge_index_dict, obs.edges_attr_dict)['application'].gather(1, actions.unsqueeze(1))
             nextValues = self.target_model(nextObs.x_dict, nextObs.edge_index_dict, nextObs.edges_attr_dict)['application'].max(dim=1)[0].detach()
             targetValues = rewards + (gamma * nextValues)
             loss = nn.MSELoss()(values, targetValues.unsqueeze(1))
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
             self.optimizer.step()
             # self.log_gradients_in_model(self.model, self.ticks)
             av_values = torch.mean(values)
@@ -185,10 +212,11 @@ class DQNTrainer:
                 self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=self.output_size)
                 self.target_model = to_hetero(self.target_model, metadata, aggr='sum')
                 self.target_model.load_state_dict(self.model.state_dict())
+                self.next_update_at = self.target_frequency
             self.ticks += 1
-            self.target_model.eval()
-            self.next_update_at = self.target_frequency
-        self.lr_scheduler.step()
+            #self.target_model.eval()
+
+        # self.lr_scheduler.step()
         return loss.item()
 
     def log_gradients_in_model(self, model, step):
@@ -241,8 +269,20 @@ class MixedRewardFunction:
         return rewards
 
 # Just a quick test
-# if __name__ == '__main__':
-#
+if __name__ == '__main__':
+
+    # buffer = GraphReplayBuffer.load()
+    # (obs, action, reward, next_obs) = buffer.sample(1)
+    # print(next_obs['application'])
+    # print(next_obs['application'].x[:, 0])
+    # print(reward)
+
+    learner = DQNTrainer(9, 1, 100)
+    learner.load_replay_buffer_from_pickle()
+    data = learner.get_data_from_buffer(1)
+    learner.toHetero(data)
+    learner.train_step_dqn(64, 0.99, 1)
+
 #     graph = create_graph(
 #         app_features=torch.tensor([[100.0, 2.0], [100.0, 1.0], [3.0, 1.0]]),
 #         infrastructural_features=torch.tensor([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]),
