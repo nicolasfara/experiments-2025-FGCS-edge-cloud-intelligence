@@ -55,8 +55,8 @@ def openCsv(path):
         lines = filter(lambda x: regex.match(x[0]), file.readlines())
         return [[float(x) for x in line.split()] for line in lines]
 
-def load_data_from_csv(path, experiment, round, seed):
-    files = glob.glob(f'{path}experiment-{experiment}*seed-{seed}*globalRound-{round}.csv')
+def load_data_from_csv(path, experiment, round, seed, alpha):
+    files = glob.glob(f'{path}experiment-{experiment}*seed-{seed}*alpha-{alpha}_globalRound-{round}.csv')
     dataframes = []
     print(f'For round {round} loaded {len(files)} files')
     for file in files:
@@ -77,18 +77,33 @@ def plot(mean, std, round, experiment, metrics):
         plt.savefig(f'charts/{experiment}/globalRound-{round}_{metric}.pdf')
         plt.close()
 
-def plot_aggregated(mean, metric):
+def plot_aggregated(mean, metric, alpha):
     time = np.linspace(1, len(mean), len(mean))
     plt.plot(time, mean, color='#440154')
-    plt.title(f'Aggregated {metric}')
+    plt.title(f'Aggregated {metric} alpha {alpha}')
     plt.xlabel('Global Round')
     plt.ylabel(metric)
-    plt.savefig(f'charts/aggregated_{metric}.pdf')
+    plt.savefig(f'charts/aggregated_{metric}-alpha{alpha}.pdf')
     plt.close()
+
+
+def plot_pareto_battery_costs(mean_battery, mean_costs, alphas):
+
+    colormap = plt.cm.get_cmap('viridis', len(alphas))
+    colors = [colormap(i) for i in range(len(alphas))]
+    plt.plot(mean_costs, mean_battery, linestyle='-', color='black', linewidth=1, zorder=1)
+    plt.scatter(mean_costs, mean_battery, s=40, color=colors, zorder=2)
+    plt.title(f'Pareto')
+    plt.xlabel('Costs')
+    plt.ylabel('Battery')
+    # plt.yscale('function', functions=(np.arcsinh, np.sinh))
+    plt.savefig(f'charts/pareto.pdf')
+    plt.close()
+
 
 if __name__ == '__main__':
     # experiments = ['battery', 'costs']
-    experiments = ['costs']
+    experiments = ['mixed']
     charts_dir = 'charts/'
     Path(charts_dir).mkdir(parents=True, exist_ok=True)
     data_path = 'data/'
@@ -103,28 +118,46 @@ if __name__ == '__main__':
         "aggregated": ['reward[mean]', 'localComponentsPercentage[mean]']
     }
 
-    for experiment in experiments:
-        Path(f'{charts_dir}{experiment}/').mkdir(parents=True, exist_ok=True)
+    alphas = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+    mean_battery = []
+    mean_cost = []
 
 
-        for seed in range(0,1):
+    for alpha in alphas:
 
-            aggregated_rewards = []
-            aggregated_local_components_percentage = []
+        for experiment in experiments:
+            Path(f'{charts_dir}{experiment}/').mkdir(parents=True, exist_ok=True)
 
-            for round in range(1, 61):
-                dataframes = load_data_from_csv(data_path, experiment, round, seed)
-                df = dataframes[0]
-                df = df.dropna()
-                aggregated_rewards.append(df['reward[mean]'].mean())
-                aggregated_local_components_percentage.append(df['localComponentsPercentage[mean]'].mean())
-                # plot(df, df, round, experiment, metrics[experiment])
-                # df_concat = pd.concat(dataframes).dropna().reset_index().groupby("index")
-                # mean = df_concat.mean()
-                # std = df_concat.std()
-                # aggregated_rewards.append(mean['reward[mean]'].mean())
-                # aggregated_local_components_percentage.append(mean['localComponentsPercentage[mean]'].mean())
-                # plot(mean, std, round, experiment, metrics[experiment])
 
-            plot_aggregated(aggregated_rewards, f'reward[mean]-seed{seed}')
-            plot_aggregated(aggregated_local_components_percentage, f'localComponentsPercentage[mean]-seed{seed}')
+            for seed in range(2,3):
+
+                aggregated_rewards = []
+                aggregated_local_components_percentage = []
+
+                for round in range(1, 61):
+                    dataframes = load_data_from_csv(data_path, experiment, round, seed, alpha)
+                    df = dataframes[0]
+                    df = df.dropna()
+                    aggregated_rewards.append(df['reward[mean]'].mean())
+                    aggregated_local_components_percentage.append(df['localComponentsPercentage[mean]'].mean())
+                    if round == 60:
+                        battery = df['batteryPercentage[mean]'].mean()
+                        cost = df['totalCost[mean]'].mean()
+                        mean_battery.append(battery)
+                        mean_cost.append(cost)
+                    # plot(df, df, round, experiment, metrics[experiment])
+                    # df_concat = pd.concat(dataframes).dropna().reset_index().groupby("index")
+                    # mean = df_concat.mean()
+                    # std = df_concat.std()
+                    # aggregated_rewards.append(mean['reward[mean]'].mean())
+                    # aggregated_local_components_percentage.append(mean['localComponentsPercentage[mean]'].mean())
+                    # plot(mean, std, round, experiment, metrics[experiment])
+
+
+                # plot_aggregated(aggregated_rewards, f'{experiment}-reward[mean]-seed{seed}', alpha)
+                # plot_aggregated(aggregated_local_components_percentage, f'{experiment}-localComponentsPercentage[mean]-seed{seed}', alpha)
+
+    print(mean_battery)
+
+    plot_pareto_battery_costs(mean_battery, mean_cost, alphas)
