@@ -216,12 +216,10 @@ class BatteryRewardFunction:
 class CostRewardFunction:
 
     def compute(self, observation, next_observation):
-        costs = next_observation["application"].x[:, 0]
-        return 1 - (torch.exp(2 * costs))
-        # return -costs
-        # rewards = -10 * torch.log(100 * costs + 1)
-        # return torch.where(rewards == 0, torch.tensor(50))
-        return rewards
+        edge_server_costs = next_observation["application"].x[:, 0]
+        cloud_costs = next_observation["application"].x[:, 1]
+        return 1 - (torch.exp(2 * (edge_server_costs + cloud_costs)))
+
 class MixedRewardFunction:
 
     def __init__(self):
