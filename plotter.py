@@ -55,11 +55,12 @@ def openCsv(path):
         lines = filter(lambda x: regex.match(x[0]), file.readlines())
         return [[float(x) for x in line.split()] for line in lines]
 
-def load_data_from_csv(path, experiment, round):
-    files = glob.glob(f'{path}experiment-{experiment}*globalRound-{round}.csv')
+def load_data_from_csv(path, experiment, round, seed):
+    files = glob.glob(f'{path}experiment-{experiment}*seed-{seed}*globalRound-{round}.csv')
     dataframes = []
     print(f'For round {round} loaded {len(files)} files')
     for file in files:
+        print(file)
         columns = extractVariableNames(file)
         data = openCsv(file)
         df = pd.DataFrame(data, columns=columns)
@@ -98,30 +99,32 @@ if __name__ == '__main__':
                     'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',
                     ],
         "costs": ['reward[min]', 'reward[max]', 'reward[mean]',
-                    'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',],
+                  'localComponentsPercentage[min]', 'localComponentsPercentage[max]', 'localComponentsPercentage[mean]',],
         "aggregated": ['reward[mean]', 'localComponentsPercentage[mean]']
     }
 
     for experiment in experiments:
         Path(f'{charts_dir}{experiment}/').mkdir(parents=True, exist_ok=True)
 
-        aggregated_rewards = []
-        aggregated_local_components_percentage = []
 
-        for round in range(1, 61):
-            dataframes = load_data_from_csv(data_path, experiment, round)
-            df = dataframes[0]
-            df = df.dropna()
-            aggregated_rewards.append(df['reward[mean]'].mean())
-            aggregated_local_components_percentage.append(df['localComponentsPercentage[mean]'].mean())
-            plot(df, df, round, experiment, metrics[experiment])
+        for seed in range(0,1):
 
-            # df_concat = pd.concat(dataframes).dropna().reset_index().groupby("index")
-            # mean = df_concat.mean()
-            # std = df_concat.std()
-            # aggregated_rewards.append(mean['reward[mean]'].mean())
-            # aggregated_local_components_percentage.append(mean['localComponentsPercentage[mean]'].mean())
-            # plot(mean, std, round, experiment, metrics[experiment])
+            aggregated_rewards = []
+            aggregated_local_components_percentage = []
 
-        plot_aggregated(aggregated_rewards, 'reward[mean]')
-        plot_aggregated(aggregated_local_components_percentage, 'localComponentsPercentage[mean]')
+            for round in range(1, 61):
+                dataframes = load_data_from_csv(data_path, experiment, round, seed)
+                df = dataframes[0]
+                df = df.dropna()
+                aggregated_rewards.append(df['reward[mean]'].mean())
+                aggregated_local_components_percentage.append(df['localComponentsPercentage[mean]'].mean())
+                # plot(df, df, round, experiment, metrics[experiment])
+                # df_concat = pd.concat(dataframes).dropna().reset_index().groupby("index")
+                # mean = df_concat.mean()
+                # std = df_concat.std()
+                # aggregated_rewards.append(mean['reward[mean]'].mean())
+                # aggregated_local_components_percentage.append(mean['localComponentsPercentage[mean]'].mean())
+                # plot(mean, std, round, experiment, metrics[experiment])
+
+            plot_aggregated(aggregated_rewards, f'reward[mean]-seed{seed}')
+            plot_aggregated(aggregated_local_components_percentage, f'localComponentsPercentage[mean]-seed{seed}')
