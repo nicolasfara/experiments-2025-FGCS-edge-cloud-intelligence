@@ -100,8 +100,8 @@ environment:
     - time-distribution:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
-      type: LearningWithCosts
-      parameters: [*seed]
+      type: LearningMixed
+      parameters: [*seed, 0.5]
 
 deployments:
   - type: Grid
