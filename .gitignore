@@ -10,3 +10,4 @@ env
 python/dist/
 python/src/RLutils.egg-info/
 python/src/__pycache__/
+runs/
