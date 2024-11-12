@@ -21,21 +21,30 @@ class LearningWithCosts[T, P <: Position[P]](
       val componentsAllocation = getAllocator(node).getComponentsAllocation
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
+      val edgeServerComponents = componentsAllocation
+        .count { case (_, where) => infrastructuralNodes.map(_.getId).contains(where) }
+      val cloudComponents = componentsAllocation
+        .count { case (_, where) => cloudNodes.map(_.getId).contains(where) }
+      val edgeServerDeltaCost = getDeltaCost(infrastructuralNodes, node.getId)
+      val cloudDeltaCost = getDeltaCost(cloudNodes, node.getId)
 
-      val deltaCost = componentsAllocation
-        .filterNot { case (_, edgeServerId) => edgeServerId == node.getId }
-        .map { case (_, edgeServerId) => getAlchemistActions(environment, edgeServerId, classOf[PayPerUseDevice[T, P]]) }
-        .map(_.head)
-        .map(_.deltaCostPerDevice(node.getId))
-        .sum
+      val f = Seq(edgeServerDeltaCost, cloudDeltaCost, localComponents)
 
-      Vector(Seq(deltaCost, (localComponents / totalComponents).toDouble))
-      // Vector(Seq(deltaCost, localComponents) ++ allocation)
+      Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
       Vector(Seq(cost))
     }
   }
+
+  private def getDeltaCost(nodes: Seq[Node[T]], mid: Int): Double=
+    nodes
+      .map(_.getId)
+      .filter(remoteID => nodes.map(_.getId).contains(remoteID))
+      .map (remoteID => getAlchemistActions(environment, remoteID, classOf[PayPerUseDevice[T, P]]))
+      .map(_.head)
+      .map(_.deltaCostPerDevice(mid))
+      .sum
 
   override protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector = {
     val distance = environment.getPosition(node).distanceTo(environment.getPosition(neigh))
