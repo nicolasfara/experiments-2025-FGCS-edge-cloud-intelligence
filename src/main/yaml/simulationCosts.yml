@@ -35,7 +35,7 @@ launcher:
     globalRounds: 60,
     seedName: "seed",
     globalBufferSize: 400,
-    actionSpaceSize: 9
+    actionSpaceSize: 36
   }
 
 network-model:
