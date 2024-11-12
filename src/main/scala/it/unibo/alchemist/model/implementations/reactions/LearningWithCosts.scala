@@ -17,7 +17,7 @@ class LearningWithCosts[T, P <: Position[P]](
   private val rewardFunction = rlUtils.CostRewardFunction()
 
   override protected def getNodeFeature(node: Node[T]): Vector = {
-    if (!node.contains(new SimpleMolecule(Molecules.infrastructural))) {
+    if (!node.contains(new SimpleMolecule(Molecules.infrastructural)) && !node.contains(new SimpleMolecule(Molecules.cloud))) {
       val componentsAllocation = getAllocator(node).getComponentsAllocation
       val totalComponents = componentsAllocation.size
       val localComponents = componentsAllocation.count { case (_, where) => node.getId == where }
