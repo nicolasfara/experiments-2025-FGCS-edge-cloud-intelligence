@@ -6,6 +6,9 @@ variables:
     max: 2
     step: 1
     default: 42
+  alpha: &alpha
+    type: ArbitraryVariable
+    parameters: [0.26, [0.26]]
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
@@ -40,7 +43,7 @@ launcher:
 
 network-model:
   type: ConnectWithinDistancesEdge
-  parameters: [3]
+  parameters: [5]
 
 _constants:
   retentionTime: &retentionTime 25.0
@@ -101,11 +104,11 @@ environment:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
       type: LearningMixed
-      parameters: [*seed, 0.5]
+      parameters: [*seed, *alpha]
 
 deployments:
   - type: Grid
-    parameters: [-5, -5, 5, 5, 1,1, 0.1, 0.1]
+    parameters: [-5, -5, 5, 5, 2, 2, 0.1, 0.1]
     programs:
       - *gradient
       - *greater
@@ -163,3 +166,9 @@ export:
       - molecule: localComponentsPercentage
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite
+      - molecule: batteryPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      -  molecule: totalCost
+         aggregators: [ min, max, mean, variance ]
+         value-filter: onlyfinite
