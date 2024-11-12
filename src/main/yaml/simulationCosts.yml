@@ -19,6 +19,10 @@ variables:
   programDag: &programDag
     language: scala
     formula: Map(gradientProgram -> Set(greaterDistance))
+  componentsInstructions: &componentsInstructions
+    language: scala
+    formula: |
+      Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
 
 seeds:
   scenario: *seed
@@ -28,7 +32,7 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 30,
+    globalRounds: 60,
     seedName: "seed",
     globalBufferSize: 400,
     actionSpaceSize: 9
@@ -70,27 +74,28 @@ _programs:
           - type: RunApplicationScafiProgram
             parameters: [ *greaterDistance, *retentionTime, *programDag ]
       - program: send
-  - program: &payPerUseDevice
-    - time-distribution: 1
-      type: Event
-      actions:
-        - type: PayPerUseDevice
-          parameters: [100.0] # Cost per component per hour in $/h
+  - program: &payPerUseEdgeServer
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 100.0 ] # Cost per component per hour in $/h
+  - program: &payPerUseCloud
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 1000.0 ] # Cost per component per hour in $/h
 
 environment:
   type: Continuous2DEnvironment
   parameters: []
   global-programs:
     - time-distribution:
-        type: Trigger
-        parameters: [ 0.1 ]
-      type: SetupGNNReaction
-      parameters: [ ]
-    - time-distribution:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
       type: LearningWithCosts
-      parameters: [*seed, 0.5]
+      parameters: [*seed]
 
 deployments:
   - type: Grid
@@ -105,21 +110,33 @@ deployments:
     parameters: [
       [ 8.2152226, 6.3816613 ],
       [ 8.2366507, 6.3838339 ],
-      #[ 8.2146077, 6.3485146 ],
-      #[ 8.2055562, 6.3778687 ],
-      #[ 8.1924837, 6.3458967 ],
+      [ 8.2146077, 6.3485146 ],
+#      [ 8.2055562, 6.3778687 ],
+#      [ 8.1924837, 6.3458967 ],
     ]
     programs:
       - *surrogateGradient
       - *surrogateGreater
-      - *payPerUseDevice
+      - *payPerUseEdgeServer
     contents:
       - molecule: infrastructuralDevice
+        concentration: true
+  - type: SpecificPositions # Clouds
+    parameters: [
+      [ 9.2152226, 7.3816613 ],
+      [ 9.2366507, 7.3838339 ],
+    ]
+    programs:
+      - *surrogateGradient
+      - *surrogateGreater
+      - *payPerUseCloud
+    contents:
+      - molecule: cloudDevice
         concentration: true
 
 terminate:
   type: AfterTime
-  parameters: 40
+  parameters: 50
 
 export:
   - type: CSVExporter
