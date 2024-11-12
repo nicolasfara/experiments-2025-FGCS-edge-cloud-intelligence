@@ -6,4 +6,5 @@ object Molecules {
   val reward = "reward"
   val localComponentsPercentage = "localComponentsPercentage"
   val decay = "decay"
+  val cloud = "cloudDevice"
 }

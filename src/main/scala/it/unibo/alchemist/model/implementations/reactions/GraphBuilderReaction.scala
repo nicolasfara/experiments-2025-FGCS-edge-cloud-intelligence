@@ -6,7 +6,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import it.unibo.alchemist.utils.Molecules
-import learning.model.{ActionSpace, Component, EdgeServer, MySelf, PairComponentDevice}
+import learning.model.{ActionSpace, Cloud, Component, EdgeServer, MySelf, PairComponentDevice}
 
 import scala.language.implicitConversions
 import me.shadaj.scalapy.py.SeqConverters
@@ -29,12 +29,17 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     distribution: TimeDistribution[T],
 ) extends AbstractGlobalReaction(environment, distribution) {
 
-  private lazy val infrastructuralNodes: Seq[Node[T]] = nodes
+  protected lazy val cloudNodes: Seq[Node[T]] = nodes
+    .filter(n => n.contains(Molecules.cloud))
+    .sortBy(node => node.getId)
+
+  protected lazy val infrastructuralNodes: Seq[Node[T]] = nodes
     .filter(n => n.contains(Molecules.infrastructural))
     .sortBy(node => node.getId)
 
   protected lazy val applicationNodes: Seq[Node[T]] = nodes
     .filterNot(n => n.contains(Molecules.infrastructural))
+    .filterNot(n => n.contains(Molecules.cloud))
     .sortBy(node => node.getId)
 
   protected lazy val learner: py.Dynamic = environment
@@ -51,6 +56,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private lazy val edgeServerSize = infrastructuralNodes.size
 
+  private lazy val cloudSize = cloudNodes.size
+
   protected lazy val components: Seq[Component] = getComponents
 
   private var oldGraph: Option[py.Dynamic] = None
@@ -59,8 +66,9 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected var currentAllocation: Option[Map[String, Int]] = None
 
-//  private lazy val actionSpace = ActionSpace(components, infrastructuralNodes.size)
-  private lazy val actionSpace = ActionSpace(components, edgeServerSize)
+  private lazy val actionSpace = ActionSpace(components, edgeServerSize, cloudSize)
+
+  private var executedToHetero = false
 
   private implicit def toMolecule(name: String): SimpleMolecule = new SimpleMolecule(name)
 
@@ -115,6 +123,11 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected def handleGraph(observation: py.Dynamic): Unit = {
 
+    if(!executedToHetero) {
+      learner.toHetero(observation)
+      executedToHetero = true
+    }
+
     val actions = learner.select_action(observation, epsilon)
 //    println(environment.getSimulation.getTime.toDouble)
 //    println(s"[DEBUG] $actions")
@@ -135,6 +148,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
             val deviceID = device match {
               case MySelf() => node.getId
               case EdgeServer(id) => id + applicationNodes.size
+              case Cloud(id) => id + applicationNodes.size + infrastructuralNodes.size
             }
             component.id -> deviceID
           }
