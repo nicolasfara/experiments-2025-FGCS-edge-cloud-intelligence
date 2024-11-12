@@ -116,15 +116,10 @@ class DQNTrainer:
         torch.backends.cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
 
-    def biased_random(self):
-        # if(self.random.random() < 0.9):
-        #     return 0
-        # else:
-        return self.random.randint(0, self.output_size - 1)
 
     def select_action(self, graph_observation, epsilon):
         if self.random.random() < epsilon:
-            return torch.tensor([self.biased_random() for _ in range(graph_observation['application'].x.shape[0])])
+            return torch.tensor([self.random.randint(0, self.output_size - 1) for _ in range(graph_observation['application'].x.shape[0])])
         else:
             self.model.eval()
             with torch.no_grad():
@@ -226,9 +221,19 @@ class MixedRewardFunction:
         self.scale_factor = 50
 
     def compute(self, observation, next_observation, alpha):
-        battery_status = -self.scale_factor * next_observation["application"].x[:, 0]
-        costs = -self.scale_factor * next_observation["application"].x[:, 1]
-        rewards = alpha * battery_status + (1 - alpha) * costs
+        battery_status_t1 = observation["application"].x[:, 0]
+        battery_status_t2 = next_observation["application"].x[:, 0]
+        rewards_battery = 1 - torch.exp(-(battery_status_t2 - battery_status_t1))
+
+        # battery_difference = battery_status_t2 - battery_status_t1
+        # rewards_battery = torch.where(battery_difference != 0, torch.tensor(-1.), torch.tensor(0.))
+
+        edge_server_costs = next_observation["application"].x[:, 1]
+        cloud_costs = next_observation["application"].x[:, 2]
+        rewards_costs = 1 - torch.exp(edge_server_costs + cloud_costs)
+
+        rewards = alpha * rewards_battery + (1 - alpha) * rewards_costs
+
         return rewards
 
 # Just a quick test
