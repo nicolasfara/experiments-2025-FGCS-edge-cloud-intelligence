@@ -89,7 +89,7 @@ class DQNTrainer:
         self.output_size = output_size
         self.replay_buffer = GraphReplayBuffer(buffer_size)
         self.random = random
-        self.hidden_size = 4
+        self.hidden_size = 64
         self.set_seed(seed)
         self.model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
         self.target_model = GCN(hidden_dim=self.hidden_size, output_dim=output_size)
