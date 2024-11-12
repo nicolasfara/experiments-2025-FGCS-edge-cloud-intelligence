@@ -1,0 +1,165 @@
+incarnation: surrogatescafi
+
+variables:
+  seed: &seed
+    min: 2
+    max: 2
+    step: 1
+    default: 42
+  globalRound: &globalRound
+    type: ArbitraryVariable
+    parameters: [ 1, [ 2, 3 ] ]
+  #------------------------------------------------------------------
+  gradientProgram: &gradientProgram
+    language: scala
+    formula: "\"it.unibo.alchemist.Gradient\""
+  greaterDistance: &greaterDistance
+    language: scala
+    formula: "\"it.unibo.alchemist.GreaterDistance\""
+  programDag: &programDag
+    language: scala
+    formula: Map(gradientProgram -> Set(greaterDistance))
+  componentsInstructions: &componentsInstructions
+    language: scala
+    formula: |
+      Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
+
+seeds:
+  scenario: *seed
+  simulation: *seed
+
+launcher:
+  type: GraphDqnLauncher
+  parameters: {
+    batch: ["seed"],
+    globalRounds: 60,
+    seedName: "seed",
+    globalBufferSize: 400,
+    actionSpaceSize: 36
+  }
+
+network-model:
+  type: ConnectWithinDistancesEdge
+  parameters: [3]
+
+_constants:
+  retentionTime: &retentionTime 25.0
+
+_programs:
+  - program: &surrogateGradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunSurrogateScafiProgram
+            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+      - program: sendSurrogate
+  - program: &surrogateGreater
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunSurrogateScafiProgram
+            parameters: [ *greaterDistance, *retentionTime, *programDag ]
+      - program: sendSurrogate
+  - program: &gradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *gradientProgram, *retentionTime, *programDag ]
+      - program: send
+  - program: &greater
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *greaterDistance, *retentionTime, *programDag ]
+      - program: send
+  - program: &batteryDevice
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: BatteryEquippedDevice
+            parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
+  - program: &payPerUseEdgeServer
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 100.0 ] # Cost per component per hour in $/h
+  - program: &payPerUseCloud
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 1000.0 ] # Cost per component per hour in $/h
+
+environment:
+  type: Continuous2DEnvironment
+  parameters: []
+  global-programs:
+    - time-distribution:
+        type: DiracComb
+        parameters: [ 2.2, 0.2 ]
+      type: LearningWithCosts
+      parameters: [*seed]
+
+deployments:
+  - type: Grid
+    parameters: [-5, -5, 5, 5, 1,1, 0.1, 0.1]
+    programs:
+      - *gradient
+      - *greater
+      - *batteryDevice
+    properties:
+      - type: AllocatorProperty
+        parameters: [ *programDag ]
+  - type: SpecificPositions # Edge Servers
+    parameters: [
+      [ 8.2152226, 6.3816613 ],
+      [ 8.2366507, 6.3838339 ],
+      [ 8.2146077, 6.3485146 ],
+      #      [ 8.2055562, 6.3778687 ],
+      #      [ 8.1924837, 6.3458967 ],
+    ]
+    programs:
+      - *surrogateGradient
+      - *surrogateGreater
+      - *payPerUseEdgeServer
+    contents:
+      - molecule: infrastructuralDevice
+        concentration: true
+  - type: SpecificPositions # Clouds
+    parameters: [
+      [ 9.2152226, 7.3816613 ],
+      [ 9.2366507, 7.3838339 ],
+    ]
+    programs:
+      - *surrogateGradient
+      - *surrogateGreater
+      - *payPerUseCloud
+    contents:
+      - molecule: cloudDevice
+        concentration: true
+
+terminate:
+  type: AfterTime
+  parameters: 50
+
+export:
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "experiment-mixed"
+      interval: 1.0
+      exportPath: "data"
+    data:
+      - time
+      - molecule: reward
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
+        precision: 3
+      - molecule: batteryCapacity
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
