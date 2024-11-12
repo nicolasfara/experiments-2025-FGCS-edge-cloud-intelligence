@@ -84,10 +84,10 @@ class GCN(torch.nn.Module):
         return x
 
 class DQNTrainer:
-    def __init__(self, output_size, seed, target_frequency):
+    def __init__(self, output_size, seed, target_frequency, buffer_size):
         self.train_summary_writer = SummaryWriter()
         self.output_size = output_size
-        self.replay_buffer = GraphReplayBuffer(30000)
+        self.replay_buffer = GraphReplayBuffer(buffer_size)
         self.random = random
         self.hidden_size = 4
         self.set_seed(seed)
