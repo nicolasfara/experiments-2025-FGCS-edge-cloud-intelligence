@@ -236,6 +236,12 @@ class MixedRewardFunction:
 
         return rewards
 
+class DensityRewardFunction:
+
+    def compute(self, observation, next_observation):
+        raise Exception(next_observation)
+
+
 # Just a quick test
 if __name__ == '__main__':
 
