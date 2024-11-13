@@ -108,9 +108,9 @@ deployments:
         parameters: [ *programDag ]
   - type: SpecificPositions # Edge Servers
     parameters: [
-      [ 8.2152226, 6.3816613 ],
-      [ 8.2366507, 6.3838339 ],
-      [ 8.2146077, 6.3485146 ],
+      [ 0, 6.3816613 ],
+      [ -1, 6.3838339 ],
+      [ 1, 6.3485146 ],
 #      [ 8.2055562, 6.3778687 ],
 #      [ 8.1924837, 6.3458967 ],
     ]
@@ -123,8 +123,8 @@ deployments:
         concentration: true
   - type: SpecificPositions # Clouds
     parameters: [
-      [ 9.2152226, 7.3816613 ],
-      [ 9.2366507, 7.3838339 ],
+      [ -0.5, 9.3816613 ],
+      [ 0.5, 9.3838339 ],
     ]
     programs:
       - *surrogateGradient
@@ -151,5 +151,11 @@ export:
         value-filter: onlyfinite
         precision: 3
       - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: componentsInCloud
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: componentsInInfrastructuralDevice
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite

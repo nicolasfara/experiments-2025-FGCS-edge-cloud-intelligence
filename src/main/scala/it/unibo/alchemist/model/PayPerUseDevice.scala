@@ -2,6 +2,7 @@ package it.unibo.alchemist.model
 
 import it.unibo.alchemist.model.actions.AbstractLocalAction
 import it.unibo.alchemist.model.implementations.actions.RunSurrogateScafiProgram
+import it.unibo.alchemist.model.implementations.nodes.SimpleNodeManager
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -28,6 +29,7 @@ class PayPerUseDevice[T, P <: Position[P]](
 
   override def execute(): Unit = {
     val currentTime = environment.getSimulation.getTime.toDouble
+    updateComponentCount(surrogateRunner.map(_.isSurrogateFor.size).sum)
     previousTime match {
       case None => previousTime = Some(currentTime)
       case Some(prevTime) =>
@@ -45,6 +47,14 @@ class PayPerUseDevice[T, P <: Position[P]](
     }
   }
 
+  def updateComponentCount(componentCount: Int): Unit = {
+    if (new SimpleNodeManager[T](node).has("cloudDevice")) {
+      node.setConcentration(PayPerUseDevice.COMPONENT_CLOUD, componentCount.asInstanceOf[T])
+    } else if (new SimpleNodeManager[T](node).has("infrastructuralDevice")) {
+      node.setConcentration(PayPerUseDevice.COMPONENT_EDGE, componentCount.asInstanceOf[T])
+    }
+  }
+
   def deltaCostPerDevice(deviceID: Int): Double = deltaCostPerDevice.get(deviceID) match {
     case Some(cost) =>
       deltaCostPerDevice = deltaCostPerDevice - deviceID
@@ -56,12 +66,10 @@ class PayPerUseDevice[T, P <: Position[P]](
     surrogateRunner
       .map(program => program.isSurrogateFor)
       .map(ids => ids.map(id => id -> deltaCost).toMap)
-      .foldLeft(Map.empty[Int, Double]) {
-        case (acc, listOfMaps) =>
-          listOfMaps.foldLeft(acc) {
-            case (map, (id, costPerComponent)) =>
-              map.updated(id, map.getOrElse(id, 0.0) + costPerComponent)
-          }
+      .foldLeft(Map.empty[Int, Double]) { case (acc, listOfMaps) =>
+        listOfMaps.foldLeft(acc) { case (map, (id, costPerComponent)) =>
+          map.updated(id, map.getOrElse(id, 0.0) + costPerComponent)
+        }
       }
 
 }
@@ -69,4 +77,8 @@ class PayPerUseDevice[T, P <: Position[P]](
 private object PayPerUseDevice {
   val COST_LAST_DELTA = new SimpleMolecule("costLastDelta")
   val TOTAL_COST = new SimpleMolecule("totalCost")
+  val COMPONENT_CLOUD = new SimpleMolecule("componentsInCloud")
+  val COMPONENT_EDGE = new SimpleMolecule("componentsInInfrastructural")
+  val IS_CLOUD = new SimpleMolecule("cloudDevice")
+  val IS_EDGE = new SimpleMolecule("infrastructuralDevice")
 }
