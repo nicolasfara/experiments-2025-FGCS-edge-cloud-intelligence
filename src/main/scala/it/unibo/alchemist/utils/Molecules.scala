@@ -7,4 +7,5 @@ object Molecules {
   val localComponentsPercentage = "localComponentsPercentage"
   val decay = "decay"
   val cloud = "cloudDevice"
+  val density = "it.unibo.DensityEstimation"
 }
