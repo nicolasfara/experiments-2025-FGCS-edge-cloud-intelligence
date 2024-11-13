@@ -57,7 +57,7 @@ class GraphDqnLauncher(
 
           learners.get(seed) match {
             case Some(_) =>
-            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed, 1000, globalBufferSize))
+            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed, 100, globalBufferSize))
           }
 
           val learnerLayer = new LearningLayer(learners.getOrElse(seed, throw new IllegalStateException("Learner not found!")))
