@@ -83,7 +83,10 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val infraNodes = infrastructuralNodes.appendedAll(cloudNodes)
     val adjacencyInfraToInfra = getEdgeIndexes(infraNodes.map(_.getId - applicationNodes.size), infraNodes.map(_.getId - applicationNodes.size))
-    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infraNodes.map(_.getId - applicationNodes.size))
+    println(s"[DEBUG] ${infraNodes.map(_.getId)}")
+    println(s"[DEBUG] ${infraNodes.map(_.getId - applicationNodes.size)}")
+    println(s"[DEBUG] ${applicationNodes.map(_.getId)}")
+    val adjacencyAppToInfra = getEdgeIndexesAll(applicationNodes.map(_.getId), infraNodes.map(_.getId - applicationNodes.size))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
     val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
@@ -177,6 +180,12 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       .filter(n => sourceNodes.contains(n.getId))
       .map(n => (n.getId, getNeighbors(n)))
       .map { case (s, neighs) => (s, filterNeighbors(neighs, endNodes)) }
+    Matrix(d)
+  }
+
+  private def getEdgeIndexesAll(sourceNodes: Seq[Int], endNodes: Seq[Int]): Matrix = {
+    val d = sourceNodes
+      .map(n => (n, endNodes))
     Matrix(d)
   }
 
