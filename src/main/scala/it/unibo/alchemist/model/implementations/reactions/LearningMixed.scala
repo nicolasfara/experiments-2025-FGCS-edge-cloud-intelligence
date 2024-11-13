@@ -31,6 +31,10 @@ class LearningMixed[T, P <: Position[P]](
       val edgeServerDeltaCost = getDeltaCost(infrastructuralNodes, node.getId)
       val cloudDeltaCost = getDeltaCost(cloudNodes, node.getId)
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
+      val allocated = componentsAllocation
+        .filterNot(_._2 == node.getId)
+        .map { case (_, id)  => getAlchemistActions(environment, id, classOf[PayPerUseDevice[T, P]])}
+
       val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents)
       Vector(f)
     } else {

@@ -32,9 +32,9 @@ launcher:
   type: GraphDqnLauncher
   parameters: {
     batch: ["seed"],
-    globalRounds: 60,
+    globalRounds: 120,
     seedName: "seed",
-    globalBufferSize: 400,
+    globalBufferSize: 2000,
     actionSpaceSize: 36
   }
 
@@ -181,3 +181,19 @@ export:
       -  molecule: totalCost
          aggregators: [ min, max, mean, variance ]
          value-filter: onlyfinite
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "experiment-density-nodes"
+      interval: 1.0
+      exportPath: "data"
+    data:
+      - time
+      - type: NodesPositions
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryCapacity", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "localComponentsPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "ComponentsExecutionCount", 3 ]

@@ -11,9 +11,9 @@ import me.shadaj.scalapy.py
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class LearningDensity[T, P <: Position[P]](
-  environment: Environment[T, P],
-  distribution: TimeDistribution[T],
-  seed: Int
+    environment: Environment[T, P],
+    distribution: TimeDistribution[T],
+    seed: Int,
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val rewardFunction = rlUtils.DensityRewardFunction()
@@ -32,7 +32,7 @@ class LearningDensity[T, P <: Position[P]](
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
 
       var densityLevel = 0
-      if(node.contains(new SimpleMolecule("distance"))){
+      if (node.contains(new SimpleMolecule("distance"))) {
         val distance = node.getConcentration(new SimpleMolecule("distance")).asInstanceOf[Boolean]
         if (distance) {
           densityLevel = 1
@@ -41,34 +41,32 @@ class LearningDensity[T, P <: Position[P]](
 
 //      println(s"[DEBUG] local components $localComponents")
 
-      val latencies: Seq[Double] = componentsAllocation
-        .map {
-          case (componentId, where) if where == node.getId =>
-            0.0
-          case (_, where) =>
-            val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
-            density match {
-              case d if d < 2.0 => 0.0
-              case d if d < 5.0 => 0.2
-              case _ => 1.0
-            }
+      val latencies: Seq[Double] = componentsAllocation.map {
+        case (componentId, where) if where == node.getId =>
+          0.0
+        case (_, where) =>
+          val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
+          density match {
+            case d if d < 5.0 => 0.0
+            case d if d < 15 => 0.2
+            case _            => 2.0
+          }
 //            baseLatency(where) *  density
-        }.toSeq
+      }.toSeq
 
       val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, densityLevel, localComponents) ++ latencies
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
-      val components = getAllocator(node).getComponentsAllocation.size
-      Vector(Seq(cost, components))
+      Vector(Seq(cost))
     }
   }
 
-  private def getDeltaCost(nodes: Seq[Node[T]], mid: Int): Double=
+  private def getDeltaCost(nodes: Seq[Node[T]], mid: Int): Double =
     nodes
       .map(_.getId)
       .filter(remoteID => nodes.map(_.getId).contains(remoteID))
-      .map (remoteID => getAlchemistActions(environment, remoteID, classOf[PayPerUseDevice[T, P]]))
+      .map(remoteID => getAlchemistActions(environment, remoteID, classOf[PayPerUseDevice[T, P]]))
       .map(_.head)
       .map(_.deltaCostPerDevice(mid))
       .sum
@@ -89,8 +87,8 @@ class LearningDensity[T, P <: Position[P]](
 
   private def baseLatency(nodeId: Int): Double = {
     nodeId match {
-      case id if infrastructuralNodes.map(_.getId).contains(id) =>  10
-      case _ =>                                                     100
+      case id if infrastructuralNodes.map(_.getId).contains(id) => 10
+      case _                                                    => 100
     }
   }
 
