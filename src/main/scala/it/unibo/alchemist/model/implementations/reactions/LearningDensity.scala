@@ -11,11 +11,10 @@ import me.shadaj.scalapy.py
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class LearningDensity[T, P <: Position[P]](
-                                          environment: Environment[T, P],
-                                          distribution: TimeDistribution[T],
-                                          seed: Int,
-                                          alpha: Double
-                                        ) extends GraphBuilderReaction[T, P](environment, distribution) {
+  environment: Environment[T, P],
+  distribution: TimeDistribution[T],
+  seed: Int
+) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val rewardFunction = rlUtils.DensityRewardFunction()
 
@@ -99,7 +98,7 @@ class LearningDensity[T, P <: Position[P]](
   }
 
   override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute(obs, nextObs, alpha)
+    val rewards = rewardFunction.compute(obs, nextObs)
     rewards
       .tolist()
       .as[List[Double]]
