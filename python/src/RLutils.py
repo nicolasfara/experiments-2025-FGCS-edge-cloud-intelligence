@@ -239,7 +239,32 @@ class MixedRewardFunction:
 class DensityRewardFunction:
 
     def compute(self, observation, next_observation):
-        raise Exception(next_observation)
+        latencies = next_observation["application"].x[:, 5:]
+
+        battery_status_t1 = observation["application"].x[:, 0]
+        battery_status_t2 = next_observation["application"].x[:, 0]
+        rewards_battery = 1 - torch.exp(-(battery_status_t2 - battery_status_t1))
+
+        edge_server_costs = next_observation["application"].x[:, 1]
+        cloud_costs = next_observation["application"].x[:, 2]
+        rewards_costs = 1 - torch.exp(edge_server_costs + cloud_costs)
+
+        rewards = (1 * rewards_battery + 0.0 * rewards_costs) - latencies.sum(dim=1)
+
+        return rewards
+
+        # s = f"""
+        #     graph = {next_observation}
+        #     -------------------------------------------------------
+        #     edge_indexes = {next_observation['app_to_infrastructural']['edge_index']}
+        #     graph = {next_observation}
+        #     -------------------------------------------------------
+        #     edge_attr = {next_observation['app_to_infrastructural']['edges_attr']}
+        #     -------------------------------------------------------
+        #     latencies =  {latencies}
+        # """
+        #
+        # raise Exception(s)
 
 
 # Just a quick test
