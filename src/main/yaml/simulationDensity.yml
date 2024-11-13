@@ -9,12 +9,6 @@ variables:
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
-  neighborThreshold: &neighborThreshold
-    type: ArbitraryVariable
-    parameters: [ 10, [10] ]
-  neighborSteps: &neighborSteps
-    type: ArbitraryVariable
-    parameters: [ 1, [1] ]
   #------------------------------------------------------------------
   densityEstimationProgram: &densityEstimationProgram
     language: scala
@@ -161,7 +155,7 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 50
+  parameters: 100
 
 export:
   - type: CSVExporter
