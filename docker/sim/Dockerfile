@@ -1,15 +1,30 @@
 FROM eclipse-temurin:17
+
 RUN mkdir /experiment
 WORKDIR /experiment
+
+RUN apt-get update && apt-get install -y \
+    python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy simulation files
 COPY effects effects
 COPY gradle gradle
 COPY src src
 COPY docker docker
 COPY *.kts ./
 COPY *.properties ./
-RUN sed -i '/alias(libs.plugins.gitSemVer)/d' build.gradle.kts
 COPY gradlew* ./
-RUN CI=true ./gradlew runAllGraphic
+COPY requirements.txt ./
+COPY python python
+
+# Debloat build.gradle.kts in order to avoid downloading unnecessary JVM for testing
+RUN sed -i '/alias(libs.plugins.gitSemVer)/d' build.gradle.kts
+RUN sed -i '/alias(libs.plugins.multiJvmTesting)/d' build.gradle.kts
+RUN sed -i '/multiJvm {/,/}/d' build.gradle.kts
+
+RUN CI=true ./gradlew runAllGraphic --info
 RUN rm -rf data
 RUN ./gradlew --stop
+
 CMD ./gradlew runAllBatch

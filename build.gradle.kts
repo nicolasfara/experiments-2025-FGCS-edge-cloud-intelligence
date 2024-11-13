@@ -110,7 +110,7 @@ val buildCustomDependency by tasks.register<Exec>("buildCustomDependency") {
     workingDir("python")
     when (Os.isFamily(Os.FAMILY_WINDOWS)) {
         true -> commandLine("$pythonVirtualEnvironment\\Scripts\\python", "setup.py", "sdist", "bdist_wheel")
-        false -> commandLine("../$pythonVirtualEnvironment/bin/python", "setup.py", "sdist", "bdist_wheel")
+        false -> commandLine("../$pythonVirtualEnvironment/bin/python3", "setup.py", "sdist", "bdist_wheel")
     }
 }
 
@@ -155,8 +155,8 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
             args(
                 "--override",
                 "monitors: { type: SwingGUI, parameters: { graphics: effects/${it.nameWithoutExtension}.json } }",
-                "--override",
-                "launcher: { parameters: { batch: [], autoStart: false } }",
+//                "--override",
+//                "launcher: { parameters: { batch: [], autoStart: false } }",
                 "--verbosity",
                 "error",
             )
