@@ -81,13 +81,14 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   private def createGraph(): py.Dynamic = {
 
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
-    val adjacencyInfraToInfra = getEdgeIndexes(infrastructuralNodes.map(_.getId - applicationNodes.size), infrastructuralNodes.map(_.getId - applicationNodes.size))
-    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infrastructuralNodes.map(_.getId - applicationNodes.size))
+    val infraNodes = infrastructuralNodes.appendedAll(cloudNodes)
+    val adjacencyInfraToInfra = getEdgeIndexes(infraNodes.map(_.getId - applicationNodes.size), infraNodes.map(_.getId - applicationNodes.size))
+    val adjacencyAppToInfra = getEdgeIndexes(applicationNodes.map(_.getId), infraNodes.map(_.getId - applicationNodes.size))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
     val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
     val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
     val pyFeaturesApplication = toFeatures(applicationNodes)
-    val pyFeaturesInfrastructural = toFeatures(infrastructuralNodes)
+    val pyFeaturesInfrastructural = toFeatures(infraNodes)
     val featureAppToApp = createFeatureTensor(adjacencyAppToApp)
     val featureInfraToInfra = createFeatureTensor(adjacencyInfraToInfra)
     val featureAppToInfra = createFeatureTensor(adjacencyAppToInfra)
