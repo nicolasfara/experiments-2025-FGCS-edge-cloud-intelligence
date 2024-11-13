@@ -37,6 +37,6 @@ case class ActionSpace(components: Seq[Component], edgeServerCardinality: Int, c
 }
 object Main extends App {
   val as =   ActionSpace(Seq(Component("Gradient"), Component("Greater")), 3, 2)
-  as.actions.foreach(println(_))
+  as.actions.zipWithIndex.foreach(println(_))
   println(as.actions.size)
 }
