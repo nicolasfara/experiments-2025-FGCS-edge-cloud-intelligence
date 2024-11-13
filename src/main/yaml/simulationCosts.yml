@@ -23,7 +23,8 @@ variables:
     language: scala
     formula: |
       Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
-
+  cloudCost: &cloudCost 1000.0
+  edgeServerCost: &edgeServerCost 100.0
 seeds:
   scenario: *seed
   simulation: *seed
@@ -79,13 +80,13 @@ _programs:
         type: Event
         actions:
           - type: PayPerUseDevice
-            parameters: [ 100.0 ] # Cost per component per hour in $/h
+            parameters: [ *edgeServerCost] # Cost per component per hour in $/h
   - program: &payPerUseCloud
       - time-distribution: 1
         type: Event
         actions:
           - type: PayPerUseDevice
-            parameters: [ 1000.0 ] # Cost per component per hour in $/h
+            parameters: [ *cloudCost ] # Cost per component per hour in $/h
 
 environment:
   type: Continuous2DEnvironment
@@ -121,6 +122,8 @@ deployments:
     contents:
       - molecule: infrastructuralDevice
         concentration: true
+      - molecule: cost
+        concentration: *edgeServerCost
   - type: SpecificPositions # Clouds
     parameters: [
       [ -0.5, 9.3816613 ],
@@ -133,7 +136,8 @@ deployments:
     contents:
       - molecule: cloudDevice
         concentration: true
-
+      - molecule: cost
+        concentration: *cloudCost
 terminate:
   type: AfterTime
   parameters: 50
