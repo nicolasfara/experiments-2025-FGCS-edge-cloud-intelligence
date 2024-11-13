@@ -11,10 +11,10 @@ import me.shadaj.scalapy.py
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class LearningMixed[T, P <: Position[P]](
-  environment: Environment[T, P],
-  distribution: TimeDistribution[T],
-  seed: Int,
-  alpha: Double
+    environment: Environment[T, P],
+    distribution: TimeDistribution[T],
+    seed: Int,
+    alpha: Double,
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val rewardFunction = rlUtils.MixedRewardFunction()
@@ -35,15 +35,17 @@ class LearningMixed[T, P <: Position[P]](
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
-      Vector(Seq(cost))
+      val components = node.getConcentration(PayPerUseDevice.COMPONENTS).asInstanceOf[Double]
+      val costPerHour = node.getConcentration(PayPerUseDevice.COST_PER_HOUR).asInstanceOf[Double]
+      Vector(Seq(cost, components, costPerHour))
     }
   }
 
-  private def getDeltaCost(nodes: Seq[Node[T]], mid: Int): Double=
+  private def getDeltaCost(nodes: Seq[Node[T]], mid: Int): Double =
     nodes
       .map(_.getId)
       .filter(remoteID => nodes.map(_.getId).contains(remoteID))
-      .map (remoteID => getAlchemistActions(environment, remoteID, classOf[PayPerUseDevice[T, P]]))
+      .map(remoteID => getAlchemistActions(environment, remoteID, classOf[PayPerUseDevice[T, P]]))
       .map(_.head)
       .map(_.deltaCostPerDevice(mid))
       .sum

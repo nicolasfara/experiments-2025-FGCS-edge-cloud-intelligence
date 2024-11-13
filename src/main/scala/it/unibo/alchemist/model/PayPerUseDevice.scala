@@ -53,6 +53,7 @@ class PayPerUseDevice[T, P <: Position[P]](
     } else if (new SimpleNodeManager[T](node).has("infrastructuralDevice")) {
       node.setConcentration(PayPerUseDevice.COMPONENT_EDGE, componentCount.asInstanceOf[T])
     }
+    node.setConcentration(new SimpleMolecule("components"), componentCount.toDouble.asInstanceOf[T])
   }
 
   def deltaCostPerDevice(deviceID: Int): Double = deltaCostPerDevice.get(deviceID) match {
@@ -77,8 +78,8 @@ class PayPerUseDevice[T, P <: Position[P]](
 private object PayPerUseDevice {
   val COST_LAST_DELTA = new SimpleMolecule("costLastDelta")
   val TOTAL_COST = new SimpleMolecule("totalCost")
+  val COST_PER_HOUR = new SimpleMolecule("cost")
   val COMPONENT_CLOUD = new SimpleMolecule("componentsInCloud")
+  val COMPONENTS = new SimpleMolecule("components")
   val COMPONENT_EDGE = new SimpleMolecule("componentsInInfrastructural")
-  val IS_CLOUD = new SimpleMolecule("cloudDevice")
-  val IS_EDGE = new SimpleMolecule("infrastructuralDevice")
 }
