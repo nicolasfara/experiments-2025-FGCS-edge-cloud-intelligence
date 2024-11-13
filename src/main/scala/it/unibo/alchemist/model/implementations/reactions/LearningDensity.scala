@@ -39,7 +39,23 @@ class LearningDensity[T, P <: Position[P]](
         }
       }
 
-      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, densityLevel, localComponents)
+//      println(s"[DEBUG] local components $localComponents")
+
+      val latencies: Seq[Double] = componentsAllocation
+        .map {
+          case (componentId, where) if where == node.getId =>
+            0.0
+          case (_, where) =>
+            val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
+            density match {
+              case d if d < 2.0 => 0.0
+              case d if d < 5.0 => 0.2
+              case _ => 1.0
+            }
+//            baseLatency(where) *  density
+        }.toSeq
+
+      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, densityLevel, localComponents) ++ latencies
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
@@ -66,13 +82,13 @@ class LearningDensity[T, P <: Position[P]](
         Vector(Seq(distance))
       case _ =>
         val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
-        val latency = baseLatency(neigh) * density
+        val latency = baseLatency(neigh.getId) * density
         Vector(Seq(latency))
     }
   }
 
-  private def baseLatency(node: Node[T]): Double = {
-    node.getId match {
+  private def baseLatency(nodeId: Int): Double = {
+    nodeId match {
       case id if infrastructuralNodes.map(_.getId).contains(id) =>  10
       case _ =>                                                     100
     }
