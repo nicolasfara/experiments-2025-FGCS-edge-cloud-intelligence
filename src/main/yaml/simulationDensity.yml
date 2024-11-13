@@ -109,16 +109,28 @@ environment:
       type: LearningDensity
       parameters: [*seed]
 
+_application-programs: &application-programs
+  - *gradient
+  - *greater
+  - *batteryDevice
+
+_application-allocation: &application-allocation
+  type: AllocatorProperty
+  parameters: [ *programDag ]
+
 deployments:
   - type: Grid
-    parameters: [-5, -5, 5, 5, 2, 2, 0.1, 0.1]
-    programs:
-      - *gradient
-      - *greater
-      - *batteryDevice
-    properties:
-      - type: AllocatorProperty
-        parameters: [ *programDag ]
+    parameters: [ 0, 0, 2, 2, 0.5, 0.5, 0.5, 0.5 ]
+    programs: *application-programs
+    properties: *application-allocation
+  - type: Grid
+    parameters: [ 3, 3, 5, 5, 0.5, 0.5, 0.5, 0.5 ]
+    programs: *application-programs
+    properties: *application-allocation
+  - type: Grid
+    parameters: [ 0, 0, 6, 6, 1.5, 1.5, 2, 2 ]
+    programs: *application-programs
+    properties: *application-allocation
   - type: SpecificPositions # Edge Servers
     parameters: [
       [ 8.2152226, 6.3816613 ],
@@ -154,7 +166,7 @@ terminate:
 export:
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment-mixed"
+      fileNameRoot: "experiment-density"
       interval: 1.0
       exportPath: "data"
     data:
