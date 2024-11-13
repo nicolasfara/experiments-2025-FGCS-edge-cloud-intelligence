@@ -43,7 +43,8 @@ class LearningDensity[T, P <: Position[P]](
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
-      Vector(Seq(cost))
+      val components = getAllocator(node).getComponentsAllocation.size
+      Vector(Seq(cost, components))
     }
   }
 
