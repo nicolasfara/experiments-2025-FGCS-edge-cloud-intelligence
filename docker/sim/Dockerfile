@@ -1,14 +1,15 @@
 FROM eclipse-temurin:17
+COPY --from=python:3.12.4-slim / /
 
-SHELL ["/bin/bash", "-c"]
+ENV CONTAINER=true
 
 RUN mkdir /experiment
 WORKDIR /experiment
-
-RUN apt-get update && apt-get install -y \
-    python3 python3-venv python3-pip python3-wheel\
-    && rm -rf /var/lib/apt/lists/*
-
+#
+#RUN apt-get update && apt-get install -y \
+#    python3 python3-venv python3-pip python3-wheel \
+#    && apt-get clean && \
+#    rm -rf /var/lib/apt/lists/*
 
 # Copy simulation files
 COPY effects effects
@@ -25,9 +26,11 @@ COPY python python
 RUN sed -i '/alias(libs.plugins.gitSemVer)/d' build.gradle.kts
 RUN sed -i '/alias(libs.plugins.multiJvmTesting)/d' build.gradle.kts
 RUN sed -i '/multiJvm {/,/}/d' build.gradle.kts
-RUN python3 -m venv env
-RUN source env/bin/activate
-RUN pip install -r requirements.txt
+
+RUN pip3 install -r requirements.txt
+
+RUN python3 python/setup.py sdist bdist_wheel
+RUN pip3 install -e python
 RUN CI=true ./gradlew runAllGraphic --info
 RUN rm -rf data
 RUN ./gradlew --stop

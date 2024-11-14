@@ -33,7 +33,7 @@ seeds:
 
 launcher:
   parameters:
-    batch: [seed, spacing, error]
+    batch: [seed, nodeCount]
 
 network-model:
   type: ConnectWithinDistancesEdge

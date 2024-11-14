@@ -146,6 +146,8 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
                 args("--override", "terminate: { type: AfterTime, parameters: [5] } ")
             } else {
                 this.additionalConfiguration()
+            }
+            if (System.getenv("CONTAINER") != "true") {
                 dependsOn(installCustomDependency)
             }
         }
