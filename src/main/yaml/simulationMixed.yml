@@ -7,8 +7,8 @@ variables:
     step: 1
     default: 0
   alpha: &alpha
-    type: ArbitraryVariable
-    parameters: [1.0, [1.0]]
+    type: LinearVariable
+    parameters: [ 0.0, 0.0, 1.05, 0.1 ]
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
@@ -39,7 +39,7 @@ seeds:
 launcher:
   type: GraphDqnLauncher
   parameters: {
-    batch: ["seed"],
+    batch: ["seed", "alpha"],
     globalRounds: 60,
     seedName: "seed",
     globalBufferSize: 400,

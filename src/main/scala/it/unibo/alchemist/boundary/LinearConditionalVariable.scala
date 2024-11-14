@@ -1,5 +1,7 @@
 package it.unibo.alchemist.boundary
 
-class LinearConditionalVariable {
+import it.unibo.alchemist.boundary.variables.LinearVariable
+
+class LinearConditionalVariable extends LinearVariable {
 
 }
