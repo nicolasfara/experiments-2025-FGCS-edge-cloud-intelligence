@@ -27,6 +27,7 @@ RUN sed -i '/alias(libs.plugins.multiJvmTesting)/d' build.gradle.kts
 RUN sed -i '/multiJvm {/,/}/d' build.gradle.kts
 RUN python3 -m venv env
 RUN source env/bin/activate
+RUN pip install -r requirements.txt
 RUN CI=true ./gradlew runAllGraphic --info
 RUN rm -rf data
 RUN ./gradlew --stop

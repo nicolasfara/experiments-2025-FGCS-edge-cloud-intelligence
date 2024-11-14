@@ -146,8 +146,8 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
                 args("--override", "terminate: { type: AfterTime, parameters: [5] } ")
             } else {
                 this.additionalConfiguration()
+                dependsOn(installCustomDependency)
             }
-            dependsOn(installCustomDependency)
         }
         val capitalizedName = it.nameWithoutExtension.replaceFirstChar { c -> c.titlecase() }
         val graphic by basetask("run${capitalizedName}Graphic") {
@@ -155,8 +155,6 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
             args(
                 "--override",
                 "monitors: { type: SwingGUI, parameters: { graphics: effects/${it.nameWithoutExtension}.json } }",
-//                "--override",
-//                "launcher: { parameters: { batch: [], autoStart: false } }",
                 "--verbosity",
                 "error",
             )
