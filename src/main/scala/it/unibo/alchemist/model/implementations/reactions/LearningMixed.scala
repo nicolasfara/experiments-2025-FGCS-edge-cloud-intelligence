@@ -33,9 +33,12 @@ class LearningMixed[T, P <: Position[P]](
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
       val allocated = componentsAllocation
         .filterNot(_._2 == node.getId)
-        .map { case (_, id)  => getAlchemistActions(environment, id, classOf[PayPerUseDevice[T, P]])}
-
-      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents)
+        .filterNot(a => cloudNodes.map(_.getId).contains(a._2))
+        .map { case (_, id)  => getAlchemistActions(environment, id, classOf[PayPerUseDevice[T, P]]) }
+        .head
+        .map(_.getComponentsCount)
+        .toSeq
+      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents) ++ allocated
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]

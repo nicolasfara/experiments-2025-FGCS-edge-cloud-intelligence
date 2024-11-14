@@ -25,6 +25,8 @@ class PayPerUseDevice[T, P <: Position[P]](
 
   private var deltaCostPerDevice: Map[Int, Double] = Map()
 
+  private var componentsCount = 0
+
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
   override def execute(): Unit = {
@@ -48,6 +50,7 @@ class PayPerUseDevice[T, P <: Position[P]](
   }
 
   def updateComponentCount(componentCount: Int): Unit = {
+    componentsCount = componentCount
     if (new SimpleNodeManager[T](node).has("cloudDevice")) {
       node.setConcentration(PayPerUseDevice.COMPONENT_CLOUD, componentCount.asInstanceOf[T])
     } else if (new SimpleNodeManager[T](node).has("infrastructuralDevice")) {
@@ -62,6 +65,8 @@ class PayPerUseDevice[T, P <: Position[P]](
       cost
     case _ => 0.0
   }
+
+  def getComponentsCount: Int = componentsCount
 
   private def getLastDeltaCostPerDevice(deltaCost: Double): Map[Int, Double] =
     surrogateRunner
