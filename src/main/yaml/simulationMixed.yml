@@ -2,10 +2,10 @@ incarnation: surrogatescafi
 
 variables:
   seed: &seed
-    min: 2
-    max: 2
+    min: 0
+    max: 4
     step: 1
-    default: 42
+    default: 0
   alpha: &alpha
     type: ArbitraryVariable
     parameters: [1.0, [1.0]]

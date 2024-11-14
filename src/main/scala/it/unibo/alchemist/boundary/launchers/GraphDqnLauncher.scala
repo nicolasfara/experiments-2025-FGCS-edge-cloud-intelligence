@@ -29,18 +29,43 @@ class GraphDqnLauncher(
     val globalRounds: Int,
     val seedName: String,
     val globalBufferSize: Int,
-    val actionSpaceSize: Int
+    val actionSpaceSize: Int,
 ) extends Launcher {
 
   private val logger: Logger = LoggerFactory.getLogger(this.getClass.getName)
   private val errorQueue = new ConcurrentLinkedQueue[Throwable]()
   implicit private val executionContext: ExecutionContext = ExecutionContext.global
-  private var learners: Map[Long, py.Dynamic] = Map.empty
-
+  // private var learners: Map[Long, py.Dynamic] = Map.empty
 
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
+    prod.zipWithIndex.foreach { case (instance, index) =>
+      val decay = new ExponentialDecay(0.99, 0.3, 0.02)
+      var learner: py.Dynamic = null
+      var seedIsSet = false
+      Range.inclusive(1, globalRounds).foreach { iter =>
+        println(s"Starting Global Round: $iter")
+        println(s"Number of simulations: ${prod.size}")
+        println(s"Epsilon Decay: ${decay.value()}")
+        instance.addOne("globalRound" -> iter)
+        val sim = loader.getWith[Any, Nothing](instance.asJava)
+        println(s"${Thread.currentThread().getName}")
+        val decayLayer = new DecayLayer(decay.value())
+        sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
+        val seed = instance(seedName).asInstanceOf[Double].toLong
+        if (!seedIsSet) {
+          learner = rlUtils.DQNTrainer(actionSpaceSize, seed, 3000, globalBufferSize)
+          seedIsSet = true
+        }
+        val learnerLayer = new LearningLayer(learner)
+        sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
+        runSimulationSync(sim, index, instance)
+        decay.update()
+        // learner.save_stats("data", seed)
+      }
+    }
+    /*
     val decay = new ExponentialDecay(0.99, 0.3, 0.02)
     Range.inclusive(1, globalRounds).foreach { iter =>
       println(s"Starting Global Round: $iter")
@@ -57,7 +82,7 @@ class GraphDqnLauncher(
 
           learners.get(seed) match {
             case Some(_) =>
-            case _ => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed, 3000, globalBufferSize))
+            case _       => learners = learners + (seed -> rlUtils.DQNTrainer(actionSpaceSize, seed, 3000, globalBufferSize))
           }
 
           val learnerLayer = new LearningLayer(learners.getOrElse(seed, throw new IllegalStateException("Learner not found!")))
@@ -65,8 +90,8 @@ class GraphDqnLauncher(
           runSimulationSync(sim, index, instance)
         }
       decay.update()
-    }
-    learners.foreach{ case (seed, l) => l.save_stats("data", seed)}
+    }*/
+    // learners.foreach { case (seed, l) => l.save_stats("data", seed) }
   }
 
   private def cartesianProduct(
