@@ -48,13 +48,13 @@ class LearningDensity[T, P <: Position[P]](
           val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
           density match {
             case d if d < 5.0 => 0.0
-            case d if d < 15 => 0.2
+            case d if d < 15  => 0.2
             case _            => 2.0
           }
 //            baseLatency(where) *  density
       }.toSeq
 
-      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, densityLevel, localComponents) ++ latencies
+      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents) ++ latencies
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
