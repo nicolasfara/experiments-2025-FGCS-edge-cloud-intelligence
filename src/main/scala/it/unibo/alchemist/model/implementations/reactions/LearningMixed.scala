@@ -15,6 +15,8 @@ class LearningMixed[T, P <: Position[P]](
     distribution: TimeDistribution[T],
     seed: Int,
     alpha: Double,
+    beta: Double,
+    gamma: Double
 ) extends GraphBuilderReaction[T, P](environment, distribution) {
 
   private val rewardFunction = rlUtils.MixedRewardFunction()
@@ -31,13 +33,23 @@ class LearningMixed[T, P <: Position[P]](
       val edgeServerDeltaCost = getDeltaCost(infrastructuralNodes, node.getId)
       val cloudDeltaCost = getDeltaCost(cloudNodes, node.getId)
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
+      print(componentsAllocation)
       val allocated = componentsAllocation
         .filterNot(_._2 == node.getId)
         .filterNot(a => cloudNodes.map(_.getId).contains(a._2))
         .map { case (_, id)  => getAlchemistActions(environment, id, classOf[PayPerUseDevice[T, P]]) }
-        .head
-        .map(_.getComponentsCount)
-        .toSeq
+        .headOption match {
+          case Some(device) =>
+            device
+              .map(_.getComponentsCount.toDouble)
+              .toSeq
+              .appendedAll(Seq.fill(componentsAllocation.size)(0.0))
+              .take(componentsAllocation.size)
+          case None => Seq.fill(componentsAllocation.size)(0.0)
+        }
+
+      print(allocated)
+
       val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents) ++ allocated
       Vector(f)
     } else {
@@ -83,7 +95,7 @@ class LearningMixed[T, P <: Position[P]](
   }
 
   override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute(obs, nextObs, alpha)
+    val rewards = rewardFunction.compute(obs, nextObs, alpha, 0.0, 1.0)
     rewards
       .tolist()
       .as[List[Double]]

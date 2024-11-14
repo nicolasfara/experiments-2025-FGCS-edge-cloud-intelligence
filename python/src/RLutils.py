@@ -220,7 +220,7 @@ class MixedRewardFunction:
     def __init__(self):
         self.scale_factor = 50
 
-    def compute(self, observation, next_observation, alpha):
+    def compute(self, observation, next_observation, alpha, beta, gamma):
         battery_status_t1 = observation["application"].x[:, 0]
         battery_status_t2 = next_observation["application"].x[:, 0]
         rewards_battery = 1 - torch.exp(-(battery_status_t2 - battery_status_t1))
@@ -232,14 +232,18 @@ class MixedRewardFunction:
         cloud_costs = next_observation["application"].x[:, 2]
         rewards_costs = 1 - torch.exp(edge_server_costs + cloud_costs)
 
-        rewards = alpha * rewards_battery + (1 - alpha) * rewards_costs
+        components = next_observation["application"].x[:, 4:]
+
+        reward_components_es = torch.where(components > 15, torch.tensor(-1.), torch.tensor(0.)).sum(dim=1)
+
+        rewards = alpha * rewards_battery + beta * rewards_costs + gamma * reward_components_es
 
         return rewards
 
 class DensityRewardFunction:
 
     def compute(self, observation, next_observation):
-        latencies = next_observation["application"].x[:, 5:]
+        latencies = next_observation["application"].x[:, 4:]
 
         battery_status_t1 = observation["application"].x[:, 0]
         battery_status_t2 = next_observation["application"].x[:, 0]
