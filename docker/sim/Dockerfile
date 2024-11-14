@@ -1,11 +1,14 @@
 FROM eclipse-temurin:17
 
+SHELL ["/bin/bash", "-c"]
+
 RUN mkdir /experiment
 WORKDIR /experiment
 
 RUN apt-get update && apt-get install -y \
-    python3 python3-venv python3-pip \
+    python3 python3-venv python3-pip python3-wheel\
     && rm -rf /var/lib/apt/lists/*
+
 
 # Copy simulation files
 COPY effects effects
@@ -22,7 +25,8 @@ COPY python python
 RUN sed -i '/alias(libs.plugins.gitSemVer)/d' build.gradle.kts
 RUN sed -i '/alias(libs.plugins.multiJvmTesting)/d' build.gradle.kts
 RUN sed -i '/multiJvm {/,/}/d' build.gradle.kts
-RUN pip install -r requirements.txt --break-system-packages
+RUN python3 -m venv env
+RUN source env/bin/activate
 RUN CI=true ./gradlew runAllGraphic --info
 RUN rm -rf data
 RUN ./gradlew --stop
