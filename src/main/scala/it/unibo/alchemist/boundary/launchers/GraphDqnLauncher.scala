@@ -49,15 +49,17 @@ class GraphDqnLauncher(
         println(s"Number of simulations: ${prod.size}")
         println(s"Epsilon Decay: ${decay.value()}")
         instance.addOne("globalRound" -> iter)
-        val sim = loader.getWith[Any, Nothing](instance.asJava)
         println(s"${Thread.currentThread().getName}")
         val decayLayer = new DecayLayer(decay.value())
-        sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
         val seed = instance(seedName).asInstanceOf[Double].toLong
+        val newSeed = iter + Math.pow(10, (seed + 1)).toLong
+        instance.addOne("randomAugmentedSeed", newSeed)
         if (!seedIsSet) {
           learner = rlUtils.DQNTrainer(actionSpaceSize, seed, 3000, globalBufferSize)
           seedIsSet = true
         }
+        val sim = loader.getWith[Any, Nothing](instance.asJava)
+        sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.decay), decayLayer.asInstanceOf[Layer[Any, Nothing]])
         val learnerLayer = new LearningLayer(learner)
         sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
         runSimulationSync(sim, index, instance)
