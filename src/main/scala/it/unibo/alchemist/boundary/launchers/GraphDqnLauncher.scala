@@ -30,6 +30,8 @@ class GraphDqnLauncher(
     val seedName: String,
     val globalBufferSize: Int,
     val actionSpaceSize: Int,
+    val boundedVariables: java.util.List[String],
+    val targetSwapPeriod: Int,
 ) extends Launcher {
 
   private val logger: Logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -40,22 +42,26 @@ class GraphDqnLauncher(
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    prod.zipWithIndex.foreach { case (instance, index) =>
-      val decay = new ExponentialDecay(0.99, 0.3, 0.02)
+    val removeIncompatibleConfigurations =
+      prod.filter(instance => isCompatible(instance, boundedVariables.asScala.toList))
+    println(s"Number of compatible configurations: ${removeIncompatibleConfigurations.size}")
+    removeIncompatibleConfigurations.zipWithIndex.foreach { case (instance, index) =>
+      println("Configuration " + index)
+      val decay = new ExponentialDecay(0.99, 0.2, 0.02)
       var learner: py.Dynamic = null
       var seedIsSet = false
       Range.inclusive(1, globalRounds).foreach { iter =>
         println(s"Starting Global Round: $iter")
-        println(s"Number of simulations: ${prod.size}")
         println(s"Epsilon Decay: ${decay.value()}")
         instance.addOne("globalRound" -> iter)
         println(s"${Thread.currentThread().getName}")
+
         val decayLayer = new DecayLayer(decay.value())
         val seed = instance(seedName).asInstanceOf[Double].toLong
         val newSeed = iter + Math.pow(10, (seed + 1)).toLong
         instance.addOne("randomAugmentedSeed", newSeed)
         if (!seedIsSet) {
-          learner = rlUtils.DQNTrainer(actionSpaceSize, seed, 3000, globalBufferSize)
+          learner = rlUtils.DQNTrainer(actionSpaceSize, seed, targetSwapPeriod, globalBufferSize)
           seedIsSet = true
         }
         val sim = loader.getWith[Any, Nothing](instance.asJava)
@@ -64,8 +70,12 @@ class GraphDqnLauncher(
         sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
         runSimulationSync(sim, index, instance)
         decay.update()
-        // learner.save_stats("data", seed)
       }
+      val seed = instance(seedName).asInstanceOf[Double].toLong
+      val alpha = instance("alpha").asInstanceOf[Double]
+      val beta = instance("beta").asInstanceOf[Double]
+      val gamma = instance("gamma").asInstanceOf[Double]
+      learner.save_stats("data-learning", seed, alpha, beta, gamma)
     }
     /*
     val decay = new ExponentialDecay(0.99, 0.3, 0.02)
@@ -139,4 +149,10 @@ class GraphDqnLauncher(
     Await.result(future, Duration.Inf)
   }
 
+  private def isCompatible(instance: mutable.Map[String, Serializable], variables: List[String]): Boolean = {
+    val bounded = variables.filter(instance.contains).map(k => instance(k).asInstanceOf[Double]).sum
+    isValid(bounded)
+  }
+  private def isValid(value: Double): Boolean =
+    value > 0.99 && value < 1.01
 }

@@ -2,7 +2,7 @@ package it.unibo.alchemist.model.implementations.reactions
 
 import it.unibo.alchemist.model.{AllocatorProperty, DecayLayer, Environment, LearningLayer, Node, Position, TimeDistribution}
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 import it.unibo.alchemist.model.molecules.SimpleMolecule
 import it.unibo.alchemist.utils.PythonModules.{rlUtils, torch}
 import it.unibo.alchemist.utils.Molecules
@@ -107,8 +107,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
     val tensors = data.map(getNodeFeature).map(toTorchTensor(_, index = false))
-    tensors
-      .tail
+    tensors.tail
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
   }
 
@@ -124,7 +123,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected def handleGraph(observation: py.Dynamic): Unit = {
 
-    if(!executedToHetero) {
+    if (!executedToHetero) {
       learner.toHetero(observation)
       executedToHetero = true
     }
@@ -140,16 +139,18 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 //      actions = torch.full((1, 100), 0).flatten()
 //    }
     actions
-      .tolist().as[List[Int]]
+      .tolist()
+      .as[List[Int]]
       .zipWithIndex
       .foreach { case (actionIndex, nodeIndex) =>
         val node = applicationNodes(nodeIndex)
-        val newComponentsAllocation = actionSpace.actions(actionIndex)
+        val newComponentsAllocation = actionSpace
+          .actions(actionIndex)
           .map { case PairComponentDevice(component, device) =>
             val deviceID = device match {
-              case MySelf() => node.getId
+              case MySelf()       => node.getId
               case EdgeServer(id) => id + applicationNodes.size
-              case Cloud(id) => id + applicationNodes.size + infrastructuralNodes.size
+              case Cloud(id)      => id + applicationNodes.size + infrastructuralNodes.size
             }
             component.id -> deviceID
           }
@@ -161,7 +162,8 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       case (Some(previousObs), Some(previousActions)) =>
         val rewards = computeRewards(previousObs, observation)
         learner.add_experience(previousObs, previousActions, rewards, observation)
-        learner.train_step_dqn(batch_size=32, gamma=0.98, seed=getSeed)
+        val loss = learner.train_step_dqn(batch_size = 32, gamma = 0.99, seed = getSeed).as[Double]
+        environment.getNodes.iterator().asScala.foreach(_.setConcentration(new SimpleMolecule("loss"), loss.asInstanceOf[T]))
       case _ =>
     }
     oldGraph = Some(observation)
@@ -189,7 +191,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
   private def toTorchTensor(data: Tensor, index: Boolean = true): py.Dynamic = data match {
     case v: Vector =>
       if (index)
-        torch.tensor(v.data.toPythonCopy, dtype= torch.int64)
+        torch.tensor(v.data.toPythonCopy, dtype = torch.int64)
       else
         torch.tensor(v.data.toPythonCopy)
     case m: Matrix =>
@@ -207,15 +209,12 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   private def toTorchTensor(data: Seq[Tensor]): py.Any = {
     val tensors = data.map(toTorchTensor(_, index = false))
-    tensors
-      .tail
+    tensors.tail
       .foldLeft(tensors.head.unsqueeze(0))((acc, elem) => torch.cat((acc, elem.unsqueeze(0)), dim = 0))
   }
 
   protected def getComponents: Seq[Component] = {
-    getAllocator(applicationNodes.head)
-      .getComponentsAllocation
-      .keys
+    getAllocator(applicationNodes.head).getComponentsAllocation.keys
       .map(id => Component(id))
       .toSeq
   }
@@ -229,7 +228,7 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
   protected def updateAllocation(node: Node[T], newAllocation: Map[String, Int]): Unit
 
-  protected  def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic
+  protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic
 
   protected def getSeed: Int
 

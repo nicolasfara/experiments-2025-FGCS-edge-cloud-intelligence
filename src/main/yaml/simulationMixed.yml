@@ -3,12 +3,20 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 4
+    max: 0
     step: 1
     default: 0
   alpha: &alpha
     type: LinearVariable
-    parameters: [ 0.0, 0.0, 1.05, 0.1 ]
+    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
+
+  beta: &beta
+    type: LinearVariable
+    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
+
+  gamma: &gamma
+    type: LinearVariable
+    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
@@ -39,11 +47,13 @@ seeds:
 launcher:
   type: GraphDqnLauncher
   parameters: {
-    batch: ["seed", "alpha"],
+    batch: ["seed", "alpha", "gamma", "beta"],
     globalRounds: 60,
     seedName: "seed",
     globalBufferSize: 400,
-    actionSpaceSize: 36
+    actionSpaceSize: 36,
+    boundedVariables: [ "alpha", "beta", "gamma" ],
+    targetSwapPeriod: 1000
   }
 
 network-model:
@@ -109,7 +119,7 @@ environment:
         type: DiracComb
         parameters: [ 2.2, 0.2 ]
       type: LearningMixed
-      parameters: [*seed, *alpha]
+      parameters: [*seed, *alpha, *beta, *gamma]
 
 deployments:
   - type: Grid
@@ -162,7 +172,7 @@ export:
     parameters:
       fileNameRoot: "experiment-mixed"
       interval: 1.0
-      exportPath: "data"
+      exportPath: "data-learning"
     data:
       - time
       - molecule: reward
@@ -186,4 +196,7 @@ export:
         value-filter: onlyfinite
       - molecule: componentsInInfrastructural
         aggregators: [ min, max, mean, sum, variance ]
+        value-filter: onlyfinite
+      - molecule: loss
+        aggregators: [ mean ]
         value-filter: onlyfinite
