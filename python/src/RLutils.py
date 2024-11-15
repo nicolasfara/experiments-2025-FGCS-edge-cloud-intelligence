@@ -105,8 +105,9 @@ class DQNTrainer:
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
 
-    def save_stats(self, path, seed):
-        self.stats.to_csv(f'{path}/stats-seed_{seed}.csv', index=False)
+    def save_stats(self, path, seed, alpha, beta, gamma):
+        file = f"stats-seed_{seed}-alpha_{alpha}-beta_{beta}-gamma_{gamma}.csv"
+        self.stats.to_csv(f'{path}/{file}', index=False)
 
     def set_seed(self, seed):
         self.random.seed(seed)
@@ -138,7 +139,7 @@ class DQNTrainer:
             return 0
 
         # epochs = min(math.ceil(self.replay_buffer.size() / 2), 50)
-        epochs = 1
+        epochs = 10
         self.train_summary_writer.add_scalar('buffer size', self.replay_buffer.size(), self.ticks)
         self.train_summary_writer.add_scalar('epochs', epochs, self.ticks)
 
