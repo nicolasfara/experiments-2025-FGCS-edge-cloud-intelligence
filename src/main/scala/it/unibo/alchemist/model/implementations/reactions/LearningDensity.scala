@@ -31,30 +31,23 @@ class LearningDensity[T, P <: Position[P]](
       val cloudDeltaCost = getDeltaCost(cloudNodes, node.getId)
       val batteryLevel = BatteryEquippedDevice.getBatteryPercentage(node)
 
-      var densityLevel = 0
-      if (node.contains(new SimpleMolecule("distance"))) {
-        val distance = node.getConcentration(new SimpleMolecule("distance")).asInstanceOf[Boolean]
-        if (distance) {
-          densityLevel = 1
+      val locations = componentsAllocation
+        .values
+        .map {
+          case id if id == node.getId => -1.0
+          case id => (id - applicationNodes.size).toDouble
         }
-      }
-
-//      println(s"[DEBUG] local components $localComponents")
-
+        .toSeq
       val latencies: Seq[Double] = componentsAllocation.map {
-        case (componentId, where) if where == node.getId =>
-          0.0
-        case (_, where) =>
+        case (componentId, where) if where == node.getId => 0.0
+        case _ =>
           val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
-          density match {
-            case d if d < 5.0 => 0.0
-            case d if d < 15  => 0.2
-            case _            => 2.0
-          }
-//            baseLatency(where) *  density
+          getLatency(density)
       }.toSeq
 
-      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents) ++ latencies
+      val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
+
+      val f = Seq(batteryLevel, edgeServerDeltaCost, cloudDeltaCost, localComponents) //, density) //++ locations //++ latencies
       Vector(f)
     } else {
       val cost = node.getConcentration(PayPerUseDevice.TOTAL_COST).asInstanceOf[Double]
@@ -72,23 +65,26 @@ class LearningDensity[T, P <: Position[P]](
       .sum
 
   override protected def getEdgeFeature(node: Node[T], neigh: Node[T]): Vector = {
-    applicationNodes
-      .map(_.getId)
-      .contains(neigh.getId) match {
-      case applicationNode if applicationNode =>
-        val distance = environment.getPosition(node).distanceTo(environment.getPosition(neigh))
-        Vector(Seq(distance))
-      case _ =>
-        val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
-        val latency = baseLatency(neigh.getId) * density
-        Vector(Seq(latency))
-    }
+    val distance = environment.getPosition(node).distanceTo(environment.getPosition(neigh))
+    Vector(Seq(distance))
+//    applicationNodes
+//      .map(_.getId)
+//      .contains(neigh.getId) match {
+//      case applicationNode if applicationNode =>
+//        val distance = environment.getPosition(node).distanceTo(environment.getPosition(neigh))
+//        Vector(Seq(distance))
+//      case _ =>
+//        val density = node.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]
+//        val latency = getLatency(density)
+//        Vector(Seq(latency))
+//    }
   }
 
-  private def baseLatency(nodeId: Int): Double = {
-    nodeId match {
-      case id if infrastructuralNodes.map(_.getId).contains(id) => 10
-      case _                                                    => 100
+  private def getLatency(density: Double): Double = {
+    density match {
+      case d if d < 5.0   => 0.0
+      case d if d < 15.0  => 0.2
+      case _              => 2.0
     }
   }
 
@@ -113,7 +109,16 @@ class LearningDensity[T, P <: Position[P]](
   }
 
   override protected def computeRewards(obs: py.Dynamic, nextObs: py.Dynamic): py.Dynamic = {
-    val rewards = rewardFunction.compute(obs, nextObs)
+
+    val latencies = applicationNodes
+      .map(n => (n.getId, getAllocator(n).getComponentsAllocation, n.getConcentration(new SimpleMolecule(Molecules.density)).asInstanceOf[Double]))
+      .map {
+        case (mid, allocation, density) =>
+          val latency = getLatency(density)
+          allocation.foldLeft(0.0)((acc, all) => if (all._2 == mid) { acc } else { acc + latency })
+      }
+
+    val rewards = rewardFunction.compute(obs, nextObs, latencies.toPythonProxy)//infrastructuralNodes.size + cloudNodes.size) //, latencies.toPythonProxy)
     rewards
       .tolist()
       .as[List[Double]]
