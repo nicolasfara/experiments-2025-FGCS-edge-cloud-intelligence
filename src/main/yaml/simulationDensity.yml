@@ -9,6 +9,9 @@ variables:
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
+  randomAugmentedSeed: &randomAugmentedSeed
+    type: ArbitraryVariable
+    parameters: [ 1, [ 2 ] ]
   #------------------------------------------------------------------
   densityEstimationProgram: &densityEstimationProgram
     language: scala
@@ -25,8 +28,8 @@ variables:
       Map(densityEstimationProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
 
 seeds:
-  scenario: *seed
-  simulation: *seed
+  scenario: *randomAugmentedSeed
+  simulation: *randomAugmentedSeed
 
 launcher:
   type: GraphDqnLauncher
@@ -160,7 +163,7 @@ terminate:
 export:
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment-density"
+      fileNameRoot: "experiment-density-AC-augmented"
       interval: 1.0
       exportPath: "data"
     data:
@@ -183,7 +186,7 @@ export:
          value-filter: onlyfinite
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment-density-nodes"
+      fileNameRoot: "experiment-density-nodes-NO-AC-augmented"
       interval: 1.0
       exportPath: "data"
     data:
