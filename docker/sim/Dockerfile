@@ -31,8 +31,8 @@ RUN pip3 install -r requirements.txt
 
 RUN python3 python/setup.py sdist bdist_wheel
 RUN pip3 install -e python
-RUN CI=true ./gradlew runAllGraphic --info
-RUN rm -rf data
-RUN ./gradlew --stop
+#RUN CI=true ./gradlew runAllGraphic --info
+#RUN rm -rf data
+#RUN ./gradlew --stop
 
 CMD ./gradlew runAllBatch
