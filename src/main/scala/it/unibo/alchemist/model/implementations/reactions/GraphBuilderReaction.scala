@@ -82,11 +82,11 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
 
     val adjacencyAppToApp = getEdgeIndexes(applicationNodes.map(_.getId), applicationNodes.map(_.getId))
     val infraNodes = infrastructuralNodes.appendedAll(cloudNodes)
-    val adjacencyInfraToInfra = getEdgeIndexes(infraNodes.map(_.getId - applicationNodes.size), infraNodes.map(_.getId - applicationNodes.size))
-    val adjacencyAppToInfra = getEdgeIndexesAll(applicationNodes.map(_.getId), infraNodes.map(_.getId - applicationNodes.size))
+    val adjacencyInfraToInfra = getEdgeIndexes(infraNodes.map(_.getId), infraNodes.map(_.getId))
+    val adjacencyAppToInfra = getEdgeIndexesAll(applicationNodes.map(_.getId), infraNodes.map(_.getId)) //- applicationNodes.size))
     val pyAdjacencyAppToApp = toTorchTensor(adjacencyAppToApp)
-    val pyAdjacencyInfraToInfra = toTorchTensor(adjacencyInfraToInfra)
-    val pyAdjacencyAppToInfra = toTorchTensor(adjacencyAppToInfra)
+    val pyAdjacencyInfraToInfra = toTorchTensor(scaleIds(adjacencyInfraToInfra))
+    val pyAdjacencyAppToInfra = toTorchTensor(scaleIds(adjacencyAppToInfra))
     val pyFeaturesApplication = toFeatures(applicationNodes)
     val pyFeaturesInfrastructural = toFeatures(infraNodes)
     val featureAppToApp = createFeatureTensor(adjacencyAppToApp)
@@ -103,6 +103,17 @@ abstract class GraphBuilderReaction[T, P <: Position[P]](
       featureAppToApp,
       featureInfraToInfra,
     )
+  }
+
+  private def scaleIds(matrix: Matrix, fromApplications: Boolean = true): Matrix = {
+    Matrix(matrix
+      .data
+      .map {
+        case (from, to) =>
+          val scaledFrom = if (fromApplications) { from } else { from - applicationNodes.size }
+          val scaledTo = to.map(_ - applicationNodes.size)
+          (scaledFrom, scaledTo)
+      })
   }
 
   private def toFeatures(data: Seq[Node[T]]): py.Dynamic = {
