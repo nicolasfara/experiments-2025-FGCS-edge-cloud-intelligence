@@ -76,9 +76,10 @@ class GraphDqnLauncher(
         learner.snapshot_model("networks", iter, seed)
       }
       val seed = instance(seedName).asInstanceOf[Double].toLong
-      val alpha = instance("alpha").asInstanceOf[Double]
-      val beta = instance("beta").asInstanceOf[Double]
-      val gamma = instance("gamma").asInstanceOf[Double]
+
+      val alpha = instance.getOrElse("alpha", 0.0)
+      val beta = instance.getOrElse("beta", 0.0)
+      val gamma = instance.getOrElse("gamma", 0.0)
       learner.save_stats("data-learning", seed, alpha, beta, gamma)
     }
     /*
