@@ -243,24 +243,24 @@ class MixedRewardFunction:
 
 class DensityRewardFunction:
 
-    # def compute(self, observation, next_observation, infrastructural_nodes_cardinality):
-    def compute(self, observation, next_observation, latencies):
+    def compute(self, observation, next_observation, infrastructural_nodes_cardinality):
+    #def compute(self, observation, next_observation, latencies):
 
-        # locations = next_observation["application"].x[:, 5:]
-        # features = next_observation['app_to_infrastructural']['edges_attr']
-        # features_cardinality = features.shape[0]
-        # application_nodes_cardinality = int(features_cardinality / infrastructural_nodes_cardinality)
-        # latencies = []
-        # for i in range(application_nodes_cardinality):
-        #     latency = 0.0
-        #     node_to_infrastructural = features[i*infrastructural_nodes_cardinality:(i*infrastructural_nodes_cardinality)+infrastructural_nodes_cardinality]
-        #     loc = locations[i]
-        #     components_cardinality = loc.shape[0]
-        #     for c in range(components_cardinality):
-        #         l = int(loc[c].item())
-        #         if l != -1:
-        #             latency += node_to_infrastructural[l].item()
-        #     latencies.append(latency)
+        locations = next_observation["application"].x[:, 5:]
+        features = next_observation['app_to_infrastructural']['edges_attr']
+        features_cardinality = features.shape[0]
+        application_nodes_cardinality = int(features_cardinality / infrastructural_nodes_cardinality)
+        latencies = []
+        for i in range(application_nodes_cardinality):
+            latency = 0.0
+            node_to_infrastructural = features[i*infrastructural_nodes_cardinality:(i*infrastructural_nodes_cardinality)+infrastructural_nodes_cardinality]
+            loc = locations[i]
+            components_cardinality = loc.shape[0]
+            for c in range(components_cardinality):
+                l = int(loc[c].item())
+                if l != -1:
+                    latency += node_to_infrastructural[l].item()
+            latencies.append(latency)
         latencies = torch.tensor(latencies)
 
         battery_status_t1 = observation["application"].x[:, 0]
