@@ -42,8 +42,11 @@ class GraphDqnLauncher(
   override def launch(loader: Loader): Unit = {
     val instances = loader.getVariables
     val prod = cartesianProduct(instances, batch)
-    val removeIncompatibleConfigurations =
+    val removeIncompatibleConfigurations = if (boundedVariables.asScala.toList.nonEmpty) {
       prod.filter(instance => isCompatible(instance, boundedVariables.asScala.toList))
+    } else {
+      prod
+    }
     println(s"Number of compatible configurations: ${removeIncompatibleConfigurations.size}")
     removeIncompatibleConfigurations.zipWithIndex.foreach { case (instance, index) =>
       println("Configuration " + index)
