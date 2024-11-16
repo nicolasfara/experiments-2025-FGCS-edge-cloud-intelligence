@@ -38,7 +38,9 @@ launcher:
     globalRounds: 120,
     seedName: "seed",
     globalBufferSize: 2000,
-    actionSpaceSize: 36
+    actionSpaceSize: 36,
+    boundedVariables: [],
+    targetSwapPeriod: 3000
   }
 
 network-model:
