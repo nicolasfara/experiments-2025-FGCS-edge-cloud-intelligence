@@ -188,7 +188,7 @@ export:
          value-filter: onlyfinite
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment-density-nodes-NO-AC-augmented"
+      fileNameRoot: "experiment-density-nodes-AC-augmented"
       interval: 1.0
       exportPath: "data"
     data:
