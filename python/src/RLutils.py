@@ -102,6 +102,9 @@ class DQNTrainer:
         self.executedToHetero = False
         self.stats = pd.DataFrame(columns=['tick', 'reward', 'values', 'next_values', 'target_values', 'loss'])
 
+    def snapshot_model(self, path, global_round, seed):
+        torch.save(self.model.state_dict(), f'{path}/model-global-round-{global_round}-seed-{seed}')
+
     def add_experience(self, graph_observation, actions, rewards, next_graph_observation):
         self.replay_buffer.push(graph_observation, actions, rewards, next_graph_observation)
 

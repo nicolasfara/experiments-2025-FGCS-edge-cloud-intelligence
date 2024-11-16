@@ -73,6 +73,7 @@ class GraphDqnLauncher(
         sim.getEnvironment.addLayer(new SimpleMolecule(Molecules.learner), learnerLayer.asInstanceOf[Layer[Any, Nothing]])
         runSimulationSync(sim, index, instance)
         decay.update()
+        learner.snapshot_model("networks", iter, seed)
       }
       val seed = instance(seedName).asInstanceOf[Double].toLong
       val alpha = instance("alpha").asInstanceOf[Double]
