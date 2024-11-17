@@ -24,7 +24,7 @@ variables:
     formula: Map(densityEstimationProgram -> Set(greaterDistance))
   osInstructions: &osInstructions
     language: scala
-    formula: 100_000L
+    formula: 0L # 100_000L
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
@@ -140,7 +140,7 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 300
+  parameters: 100
 
 export:
   - type: CSVExporter

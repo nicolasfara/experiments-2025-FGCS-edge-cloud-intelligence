@@ -3,12 +3,12 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 9
+    max: 0
     step: 1
     default: 0
   scenarioType: &scenarioType
     type: ArbitraryVariable
-    parameters: [ "fulloffload", [ "fulllocal", "fulloffload" ] ]
+    parameters: [ "fulloffloadcloud", [ "fulllocal", "fulloffloadcloud", "fulloffloadedge" ] ] # TODO Sistemare offloading!
   #------------------------------------------------------------------
   gradientProgram: &gradientProgram
     language: scala
@@ -21,11 +21,13 @@ variables:
     formula: Map(gradientProgram -> Set(greaterDistance))
   osInstructions: &osInstructions
     language: scala
-    formula: 5_000_000L
+    formula: 0L # 5_000_000L
   componentsInstructions: &componentsInstructions
     language: scala
     formula: |
       Map(gradientProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
+  cloudCost: &cloudCost 1000.0
+  edgeCost: &edgeCost 100.0
 
 seeds:
   scenario: *seed
@@ -78,7 +80,7 @@ _programs:
       type: Event
       actions:
         - type: PayPerUseDevice
-          parameters: [1.0] # Cost per component per hour in $/h
+          parameters: [*edgeCost] # Cost per component per hour in $/h
   - program: &ruleControllerModularizationRuntime
     - time-distribution:
         type: Trigger
@@ -87,6 +89,12 @@ _programs:
       actions:
         - type: RuleControllerModularizationRuntime
           parameters: [ *programDag, *scenarioType ]
+  - program: &payPerUseCloud
+    - time-distribution: 1
+      type: Event
+      actions:
+        - type: PayPerUseDevice
+          parameters: [ *cloudCost ] # Cost per component per hour in $/h
 
 launcher:
   parameters:
@@ -134,10 +142,24 @@ deployments:
     contents:
       - molecule: infrastructuralDevice
         concentration: true
+  - type: SpecificPositions # Clouds
+    parameters: [
+      [ -0.5, 9.3816613 ],
+      [ 0.5, 9.3838339 ],
+    ]
+    programs:
+      - *surrogateGradient
+      - *surrogateGreater
+      - *payPerUseCloud
+    contents:
+      - molecule: cloudDevice
+        concentration: true
+      - molecule: cost
+        concentration: *cloudCost
 
 terminate:
   type: AfterTime
-  parameters: 300
+  parameters: 50
 
 export:
   - type: CSVExporter
@@ -157,6 +179,12 @@ export:
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite
       - molecule: ComponentsExecutionCount
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: cost
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: totalCost
         aggregators: [ min, max, mean, variance ]
         value-filter: onlyfinite
   - type: CSVExporter

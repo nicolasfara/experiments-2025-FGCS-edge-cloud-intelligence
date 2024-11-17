@@ -187,10 +187,10 @@ if __name__ == '__main__':
     experiments = ['baseline-spatial-aggregated', 'baseline-static-aggregated']
     floatPrecision = '{: 0.3f}'
     # Number of time samples 
-    timeSamples = 200
+    timeSamples = 50
     # time management
-    minTime = 5
-    maxTime = 300
+    minTime = 0
+    maxTime = 50
     timeColumnName = 'time'
     logarithmicTime = False
     # One or more variables are considered random and "flattened"
@@ -425,32 +425,55 @@ if __name__ == '__main__':
         # generate_all_charts(current_experiment_means, current_experiment_errors, basedir = f'{experiment}/all')
         
 # Custom charting
+    import os
     import seaborn as sns
     import seaborn.objects as so
 
     # setup theme seaborn
     sns.set_theme()
+    sns.set(font_scale=1.4)
     sns.set_style("whitegrid")
     sns.color_palette("colorblind")
 
-    rule_static_data_ = means['baseline-static-aggregated']
-    print(rule_static_data_.coords['scenarioType'])
-    rule_static_data = rule_static_data_['batteryPercentage[mean]'].to_dataframe()
-    # convert to a dataframe with 'time' and the value of 'batteryPercentage[mean]' where the 'seed' are used for error bars
-    print(rule_static_data.columns)
+    # check if the directory exists
+    if not os.path.exists("charts"):
+        os.makedirs("charts")
 
-    # plot a chart using seaborn where two lines (one for each scenarioType) are plotted where on x axis we have the 'time' and on y axis the 'value' and the y axis 'batteryPercentage[mean]'
+    rule_static_data_ = means['baseline-static-aggregated']
+    rule_static_data_ = rule_static_data_.rename({'scenarioType': 'Scenario'})
+    rule_static_data_ = rule_static_data_.assign_coords(Scenario=['Local', 'Cloud', 'Edge'])
+    rule_static_data = rule_static_data_[['batteryPercentage[mean]', "totalCost[mean]"]].to_dataframe()
 
     plt.figure(figsize=(8, 5))
     battery_plot = sns.lineplot(
         data=rule_static_data,
         x='time',
         y='batteryPercentage[mean]',
-        hue='scenarioType'
+        hue='Scenario',
+        linewidth=2,
     )
     battery_plot.set(
-        xlabel="Time (s)",
+        xlabel="Time (m)",
         ylabel="Battery Percentage (%)",
-        title="Battery Percentage over Time"
+        title="Battery percentage over Time"
     )
+    # battery_plot.legend(title='Offloading', loc='lower left', labels=['Local', 'Edge'])
+    plt.tight_layout()
     plt.savefig("charts/battery_percentage_baseline.pdf")
+
+    plt.figure(figsize=(8, 5))
+    cost_plot = sns.lineplot(
+        data=rule_static_data,
+        x='time',
+        y='totalCost[mean]',
+        hue='Scenario',
+        linewidth=2,
+    )
+    cost_plot.set(
+        xlabel="Time (m)",
+        ylabel="Cost ($)",
+        title="Total cost over Time"
+    )
+    # cost_plot.legend(title="Scenario", loc='upper left', labels=['Local', 'Cloud', 'Edge'])
+    plt.tight_layout()
+    plt.savefig("charts/total_cost_baseline.pdf")

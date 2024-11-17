@@ -15,6 +15,7 @@ class RuleControllerModularizationRuntime[T, P <: Position[P]](
     scenarioType: String,
 ) extends AbstractLocalAction[T](node) {
   private val infrastructuralMolecule = new SimpleMolecule("infrastructuralDevice")
+  private val cloudDeviceMolecule = new SimpleMolecule("cloudDevice")
   private val components = componentsDag.keySet ++ componentsDag.values.flatten
   private lazy val allocator: AllocatorProperty[T, P] = node.getProperties.asScala
     .find(_.isInstanceOf[AllocatorProperty[T, P]])
@@ -25,20 +26,28 @@ class RuleControllerModularizationRuntime[T, P <: Position[P]](
     .find(_.isInstanceOf[BatteryEquippedDevice[T, P]])
     .map(_.asInstanceOf[BatteryEquippedDevice[T, P]])
     .getOrElse(throw new IllegalStateException(s"`BatteryEquippedDevice` not found for node ${node.getId}"))
-  private lazy val surrogate = environment
+  private lazy val edgeSurrogate = environment
     .getNeighborhood(node)
     .iterator()
     .asScala
     .filter(_.contains(infrastructuralMolecule))
     .toList
-  private lazy val candidateInfrastructural = surrogate(random.nextInt(surrogate.size))
+  private lazy val cloudSurrogate = environment
+    .getNodes
+    .iterator()
+    .asScala
+    .filter(_.contains(cloudDeviceMolecule))
+    .toList
+  private lazy val candidateEdgeInfrastructural = edgeSurrogate(random.nextInt(edgeSurrogate.size))
+  private lazy val candidateCloud = cloudSurrogate(random.nextInt(cloudSurrogate.size))
 
   override def cloneAction(node: Node[T], reaction: Reaction[T]): Action[T] = ???
 
   override def execute(): Unit = {
     scenarioType match {
       case "fulllocal"   => allocator.setComponentsAllocation(components.map(_ -> node.getId).toMap)
-      case "fulloffload" => allocator.setComponentsAllocation(components.map(_ -> candidateInfrastructural.getId).toMap)
+      case "fulloffloadedge" => allocator.setComponentsAllocation(components.map(_ -> candidateEdgeInfrastructural.getId).toMap)
+      case "fulloffloadcloud" => allocator.setComponentsAllocation(components.map(_ -> candidateCloud.getId).toMap)
       case _              => throw new IllegalStateException(s"Unknown scenario type: $scenarioType")
     }
     batteryModel.updateComponentsExecution(allocator.getComponentsAllocation)
