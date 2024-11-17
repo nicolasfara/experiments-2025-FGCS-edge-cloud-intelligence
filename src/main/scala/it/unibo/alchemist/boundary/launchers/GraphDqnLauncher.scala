@@ -77,9 +77,9 @@ class GraphDqnLauncher(
       }
       val seed = instance(seedName).asInstanceOf[Double].toLong
 
-      val alpha = instance.getOrElse("alpha", 0.0)
-      val beta = instance.getOrElse("beta", 0.0)
-      val gamma = instance.getOrElse("gamma", 0.0)
+      val alpha: Double = instance.getOrElse("alpha", 0.0).asInstanceOf[Double]
+      val beta: Double = instance.getOrElse("beta", 0.0).asInstanceOf[Double]
+      val gamma: Double = instance.getOrElse("gamma", 0.0).asInstanceOf[Double ]
       learner.save_stats("data-learning", seed, alpha, beta, gamma)
     }
     /*
