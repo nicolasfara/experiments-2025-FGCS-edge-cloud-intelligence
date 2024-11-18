@@ -3,12 +3,12 @@ incarnation: surrogatescafi
 variables:
   seed: &seed
     min: 0
-    max: 9
+    max: 0
     step: 1
     default: 0
   neighborThreshold: &neighborThreshold
     type: ArbitraryVariable
-    parameters: [ 10, [ 5, 10, 20 ] ]
+    parameters: [ 5, [ 5, 10, 20 ] ]
   neighborSteps: &neighborSteps
     type: ArbitraryVariable
     parameters: [ 1, [ 1, 2, 3 ] ]
@@ -29,6 +29,9 @@ variables:
     language: scala
     formula: |
       Map(densityEstimationProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
+  cloudCost: &cloudCost 1000.0
+  edgeCost: &edgeCost 100.0
+  maxComponents: &maxComponents 10
 
 seeds:
   scenario: *seed
@@ -76,12 +79,18 @@ _programs:
         actions:
           - type: BatteryEquippedDevice
             parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5, *osInstructions ] # Battery capacity, EPI (nJ), components instructions
-  - program: &payPerUseDevice
+  - program: &payPerUseEdgeDevice
     - time-distribution: 1
       type: Event
       actions:
         - type: PayPerUseDevice
-          parameters: [1.0] # Cost per component per hour in $/h
+          parameters: [*edgeCost] # Cost per component per hour in $/h
+  - program: &payPerUseCloudDevice
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ *cloudCost ] # Cost per component per hour in $/h
   - program: &ruleControllerModularizationRuntime
     - time-distribution:
         type: Trigger
@@ -133,10 +142,26 @@ deployments:
     programs:
       - *surrogateDensityEstimation
       - *surrogateGreater
-      - *payPerUseDevice
+      - *payPerUseEdgeDevice
     contents:
       - molecule: infrastructuralDevice
         concentration: true
+      - molecule: maxComponents
+        concentration: *maxComponents
+  - type: SpecificPositions # Clouds
+    parameters: [
+      [ -0.5, 9.3816613 ],
+      [ 0.5, 9.3838339 ],
+    ]
+    programs:
+      - *surrogateDensityEstimation
+      - *surrogateGreater
+      - *payPerUseCloudDevice
+    contents:
+      - molecule: cloudDevice
+        concentration: true
+      - molecule: cost
+        concentration: *cloudCost
 
 terminate:
   type: AfterTime
@@ -175,6 +200,6 @@ export:
       - type: MoleculePerNodeExtractor
         parameters: [ "batteryCapacity", 3 ]
       - type: MoleculePerNodeExtractor
-        parameters: [ "localComponentsPercentage", 3 ]
+        parameters: [ "percentageOffloadedComponents", 3 ]
       - type: MoleculePerNodeExtractor
         parameters: [ "ComponentsExecutionCount", 3 ]

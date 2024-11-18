@@ -184,13 +184,13 @@ if __name__ == '__main__':
     # How to name the summary of the processed data
     pickleOutput = 'data_summary'
     # Experiment prefixes: one per experiment (root of the file name)
-    experiments = ['baseline-spatial-aggregated', 'baseline-static-aggregated']
+    experiments = ['baseline-spatial-aggregated', 'baseline-spatial-nodes', 'baseline-static-aggregated']
     floatPrecision = '{: 0.3f}'
     # Number of time samples 
-    timeSamples = 50
+    timeSamples = 100
     # time management
     minTime = 0
-    maxTime = 50
+    maxTime = 100
     timeColumnName = 'time'
     logarithmicTime = False
     # One or more variables are considered random and "flattened"
@@ -433,7 +433,7 @@ if __name__ == '__main__':
     sns.set_theme()
     sns.set(font_scale=1.4)
     sns.set_style("whitegrid")
-    sns.color_palette("colorblind")
+    sns.color_palette("viridis")
 
     # check if the directory exists
     if not os.path.exists("charts"):
@@ -451,15 +451,18 @@ if __name__ == '__main__':
         y='batteryPercentage[mean]',
         hue='Scenario',
         linewidth=2,
+        palette='viridis'
     )
     battery_plot.set(
         xlabel="Time (m)",
         ylabel="Battery Percentage (%)",
         title="Battery percentage over Time"
     )
+    battery_plot.set_xlim(0, 50)
     # battery_plot.legend(title='Offloading', loc='lower left', labels=['Local', 'Edge'])
     plt.tight_layout()
     plt.savefig("charts/battery_percentage_baseline.pdf")
+    plt.close()
 
     plt.figure(figsize=(8, 5))
     cost_plot = sns.lineplot(
@@ -468,12 +471,35 @@ if __name__ == '__main__':
         y='totalCost[mean]',
         hue='Scenario',
         linewidth=2,
+        palette='viridis'
     )
     cost_plot.set(
         xlabel="Time (m)",
         ylabel="Cost ($)",
         title="Total cost over Time"
     )
+    cost_plot.set_xlim(0, 50)
     # cost_plot.legend(title="Scenario", loc='upper left', labels=['Local', 'Cloud', 'Edge'])
     plt.tight_layout()
     plt.savefig("charts/total_cost_baseline.pdf")
+    plt.close()
+
+    offloading_data = means['baseline-spatial-nodes'].mean(dim=['seed'])
+    all_nodes = [f"node-{i}" for i in range(1, 48)]
+    all_nodes_x = [f"{node}-x" for node in all_nodes]
+    all_nodes_y = [f"{node}-y" for node in all_nodes]
+    all_nodes_local_components = [f"{node}[percentageOffloadedComponents]" for node in all_nodes]
+    offloading_data = offloading_data[all_nodes_x + all_nodes_y + all_nodes_local_components] #.to_dataframe()
+    viridis = plt.cm.get_cmap('viridis', 3)
+
+    # print(offloading_data['neighborSteps'])
+
+    for step in offloading_data['neighborSteps'].to_numpy():
+        for threshold in offloading_data['neighborThreshold'].to_numpy():
+            data = offloading_data.sel(neighborSteps=step, neighborThreshold=threshold)
+            #print(data[all_nodes_local_components].isel(time=10).to_array())
+            colormapping = [viridis(c) for c in data[all_nodes_local_components].isel(time=99).to_array()]
+            plt.scatter(data[all_nodes_x].isel(time=99).to_array(), data[all_nodes_y].isel(time=99).to_array(), color=colormapping)
+            plt.title(f"Offloading at step {step} with threshold {threshold}")
+            plt.savefig(f'charts/offloading_spatial_step-{step}_threshold-{threshold}.pdf')
+            plt.close()
