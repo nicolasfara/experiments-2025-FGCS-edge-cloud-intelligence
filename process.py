@@ -3,6 +3,7 @@ import xarray as xr
 import re
 from pathlib import Path
 import collections
+import matplotlib.patches as mpatches
 
 def distance(val, ref):
     return abs(ref - val)
@@ -499,8 +500,12 @@ if __name__ == '__main__':
         for threshold in offloading_data['neighborThreshold'].to_numpy():
             data = offloading_data.sel(neighborSteps=step, neighborThreshold=threshold)
 
-            colormapping = [viridis(c) for c in data[all_nodes_local_components].isel(time=99).to_array()]
+
+            colormapping = [viridis(c.item()) for c in data[all_nodes_local_components].isel(time=99).to_array()]
+            colors = {c.item(): viridis(c.item()) for c in data[all_nodes_local_components].isel(time=99).to_array() }
+            legend_elements = [mpatches.Patch(color=c, label=f"{p * 100}%") for p, c in sorted(colors.items())]
             plt.scatter(data[all_nodes_x].isel(time=99).to_array(), data[all_nodes_y].isel(time=99).to_array(), color=colormapping)
+            plt.legend(handles=legend_elements, title="Offloaded Components (%)", loc = 'upper left')
             plt.title(f"{int(threshold)} neighbors - {int(step)} steps")
             plt.tight_layout()
 
