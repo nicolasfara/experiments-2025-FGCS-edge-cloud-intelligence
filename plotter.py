@@ -54,19 +54,6 @@ def load_csv_density(path, experiment, global_round, seed):
         df = pd.DataFrame(data, columns=columns)
         return df
 
-
-def beautify_param(p):
-    if p == 0.30000000000000004:
-        return 0.3
-    elif p == 0.7999999999999999:
-        return 0.8
-    elif p == 0.8999999999999999:
-        return 0.9
-    elif p == 0.9999999999999999:
-        return 1.0
-    else:
-        return p
-
 def beautify_label(label):
     if 'reward[mean]' in label:
         return 'Reward'
@@ -86,9 +73,6 @@ def beautify_label(label):
         raise Exception('Unknown Label')
 
 def plot(mean, std, global_round, metrics, alpha, beta, gamma, output_path):
-    alpha = beautify_param(alpha)
-    beta = beautify_param(beta)
-    gamma = beautify_param(gamma)
 
     path = f'{output_path}/alpha-{alpha}_beta-{beta}_gamma-{gamma}'
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -109,10 +93,6 @@ def extract_mean_std(data):
     return mean, std
 
 def plot_aggregated(aggregated, metrics, rounds, alpha, beta, gamma, output_path):
-
-    alpha = beautify_param(alpha)
-    beta = beautify_param(beta)
-    gamma = beautify_param(gamma)
 
     path = f'{output_path}/aggregated/alpha-{alpha}_beta-{beta}_gamma-{gamma}'
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -172,16 +152,16 @@ if __name__ == '__main__':
     matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath,amssymb,amsfonts}')
 
     # Experiments parameters
-    data_path   = 'data-debug-2'
-    charts_path = 'charts-dioporco'
+    data_path   = 'data'
+    charts_path = 'charts'
     experiment  = 'mixed'
     min_seed    = 0
     max_seed    = 3
     step_seed   = 1
     rounds      = 60
-    alphas      = { 0.0, 0.1, 0.2, 0.30000000000000004, 0.4, 0.5, 0.6, 0.7, 0.7999999999999999, 0.8999999999999999, 0.9999999999999999 }
-    betas       = { 0.0, 0.1, 0.2, 0.30000000000000004, 0.4, 0.5, 0.6, 0.7, 0.7999999999999999, 0.8999999999999999, 0.9999999999999999 }
-    gammas      = { 0.0, 0.1, 0.2, 0.30000000000000004, 0.4, 0.5, 0.6, 0.7, 0.7999999999999999, 0.8999999999999999, 0.9999999999999999 }
+    alphas      = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 }
+    betas       = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 }
+    gammas      = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 }
     metrics     = ['reward[mean]', 'localComponentsPercentage[mean]', 'batteryPercentage[mean]', 'totalCost[mean]', 'componentsInCloud[mean]', 'componentsInInfrastructural[mean]', 'loss[mean]']
 
     Path(charts_path).mkdir(parents=True, exist_ok=True)
