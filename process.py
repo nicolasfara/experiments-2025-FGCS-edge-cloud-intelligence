@@ -428,6 +428,7 @@ if __name__ == '__main__':
     import os
     import seaborn as sns
     import seaborn.objects as so
+    import matplotlib.patches as mpatches
 
     # setup theme seaborn
     sns.set_theme()
@@ -489,7 +490,7 @@ if __name__ == '__main__':
     all_nodes_x = [f"{node}-x" for node in all_nodes]
     all_nodes_y = [f"{node}-y" for node in all_nodes]
     all_nodes_local_components = [f"{node}[percentageOffloadedComponents]" for node in all_nodes]
-    offloading_data = offloading_data[all_nodes_x + all_nodes_y + all_nodes_local_components] #.to_dataframe()
+    offloading_data = offloading_data[all_nodes_x + all_nodes_y + all_nodes_local_components]
     viridis = plt.cm.get_cmap('viridis', 3)
 
     # print(offloading_data['neighborSteps'])
@@ -497,9 +498,11 @@ if __name__ == '__main__':
     for step in offloading_data['neighborSteps'].to_numpy():
         for threshold in offloading_data['neighborThreshold'].to_numpy():
             data = offloading_data.sel(neighborSteps=step, neighborThreshold=threshold)
-            #print(data[all_nodes_local_components].isel(time=10).to_array())
+
             colormapping = [viridis(c) for c in data[all_nodes_local_components].isel(time=99).to_array()]
             plt.scatter(data[all_nodes_x].isel(time=99).to_array(), data[all_nodes_y].isel(time=99).to_array(), color=colormapping)
-            plt.title(f"Offloading at step {step} with threshold {threshold}")
+            plt.title(f"{int(threshold)} neighbors - {int(step)} steps")
+            plt.tight_layout()
+
             plt.savefig(f'charts/offloading_spatial_step-{step}_threshold-{threshold}.pdf')
             plt.close()

@@ -200,6 +200,6 @@ export:
       - type: MoleculePerNodeExtractor
         parameters: [ "batteryCapacity", 3 ]
       - type: MoleculePerNodeExtractor
-        parameters: [ "percentageOffloadedComponents", 3 ]
+          parameters: [ "percentageOffloadedComponents", 3 ]
       - type: MoleculePerNodeExtractor
         parameters: [ "ComponentsExecutionCount", 3 ]
