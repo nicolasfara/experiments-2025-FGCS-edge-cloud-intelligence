@@ -2,21 +2,22 @@ incarnation: surrogatescafi
 
 variables:
   seed: &seed
-    min: 1
-    max: 3
+    min: 0
+    max: 0
     step: 1
     default: 1
   alpha: &alpha
-    type: LinearVariable
-    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
+    type: ArbitraryVariable
+    parameters: [ 0.1, [ 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ] ]
 
   beta: &beta
-    type: LinearVariable
-    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
+    type: ArbitraryVariable
+    parameters: [ 0.9, [ 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ] ]
 
   gamma: &gamma
-    type: LinearVariable
-    parameters: [ 0.0, 0.0, 1.00, 0.1 ]
+    type: ArbitraryVariable
+    parameters: [ 0.0 ,[ 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ] ]
+
   globalRound: &globalRound
     type: ArbitraryVariable
     parameters: [ 1, [ 2, 3 ] ]
@@ -172,7 +173,7 @@ export:
     parameters:
       fileNameRoot: "experiment-mixed"
       interval: 1.0
-      exportPath: "data-learning"
+      exportPath: "data-learning-mixed"
     data:
       - time
       - molecule: reward
