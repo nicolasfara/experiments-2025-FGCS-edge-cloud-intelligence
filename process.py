@@ -431,6 +431,14 @@ if __name__ == '__main__':
     import seaborn.objects as so
     import matplotlib.patches as mpatches
 
+    # Set matplotlib parameters
+    matplotlib.rcParams.update({'axes.titlesize': 18})
+    matplotlib.rcParams.update({'axes.labelsize': 18})
+    matplotlib.rcParams.update({'xtick.labelsize': 15})
+    matplotlib.rcParams.update({'ytick.labelsize': 15})
+    matplotlib.rcParams.update({"text.usetex": True})
+    matplotlib.rc('text.latex', preamble=r'\usepackage{amsmath,amssymb,amsfonts}')
+
     # setup theme seaborn
     sns.set_theme()
     sns.set(font_scale=1.4)
@@ -457,7 +465,7 @@ if __name__ == '__main__':
     )
     battery_plot.set(
         xlabel="Time (m)",
-        ylabel="Battery Percentage (%)",
+        ylabel=r"Battery Percentage (\%)",
         title="Battery percentage over Time"
     )
     battery_plot.set_xlim(0, 50)
@@ -477,7 +485,7 @@ if __name__ == '__main__':
     )
     cost_plot.set(
         xlabel="Time (m)",
-        ylabel="Cost ($)",
+        ylabel=r"Cost (\$)",
         title="Total cost over Time"
     )
     cost_plot.set_xlim(0, 50)
@@ -486,28 +494,38 @@ if __name__ == '__main__':
     plt.savefig("charts/total_cost_baseline.pdf")
     plt.close()
 
-    offloading_data = means['baseline-spatial-nodes'].mean(dim=['seed'])
+    offloading_data = means['baseline-spatial-nodes'].mean(dim=['seed']).isel(time=99)
+    print(offloading_data.to_dataframe())
     all_nodes = [f"node-{i}" for i in range(1, 48)]
     all_nodes_x = [f"{node}-x" for node in all_nodes]
     all_nodes_y = [f"{node}-y" for node in all_nodes]
-    all_nodes_local_components = [f"{node}[percentageOffloadedComponents]" for node in all_nodes]
+    all_nodes_local_components = [f"{node}[percentageLocalComponents]" for node in all_nodes]
     offloading_data = offloading_data[all_nodes_x + all_nodes_y + all_nodes_local_components]
     viridis = plt.cm.get_cmap('viridis', 3)
-
-    # print(offloading_data['neighborSteps'])
 
     for step in offloading_data['neighborSteps'].to_numpy():
         for threshold in offloading_data['neighborThreshold'].to_numpy():
             data = offloading_data.sel(neighborSteps=step, neighborThreshold=threshold)
 
-
-            colormapping = [viridis(c.item()) for c in data[all_nodes_local_components].isel(time=99).to_array()]
-            colors = {c.item(): viridis(c.item()) for c in data[all_nodes_local_components].isel(time=99).to_array() }
-            legend_elements = [mpatches.Patch(color=c, label=f"{p * 100}%") for p, c in sorted(colors.items())]
-            plt.scatter(data[all_nodes_x].isel(time=99).to_array(), data[all_nodes_y].isel(time=99).to_array(), color=colormapping)
-            plt.legend(handles=legend_elements, title="Offloaded Components (%)", loc = 'upper left')
+            colormapping = [viridis(c.item()) for c in data[all_nodes_local_components].to_array()]
+            colors = {c.item(): viridis(c.item()) for c in data[all_nodes_local_components].to_array() }
+            legend_elements = [mpatches.Patch(color=c, label=f"{int(p * 100)}%") for p, c in sorted(colors.items())]
+            plt.scatter(data[all_nodes_x].to_array(), data[all_nodes_y].to_array(), color=colormapping)
+            plt.legend(handles=legend_elements, title="Offloaded Components (\%)", loc = 'upper right')
             plt.title(f"{int(threshold)} neighbors - {int(step)} steps")
+# =======
+#             plot = sns.scatterplot(x=data[all_nodes_x].to_array(), y=data[all_nodes_y].to_array(), hue=data[all_nodes_local_components].to_array(), palette='viridis')
+#             plot.set(
+#                 xlabel="Distance (m)",
+#                 ylabel="Distance (m)",
+#                 title=f"s={int(threshold)} and t={int(step)}",
+#             )
+#             plot.legend(title="Local Components (\%)")
+# >>>>>>> Stashed changes
             plt.tight_layout()
-
             plt.savefig(f'charts/offloading_spatial_step-{step}_threshold-{threshold}.pdf')
-            plt.close()
+            # plt.title(f"s={int(threshold)} - t={int(step)}")
+            # plt.tight_layout()
+            #
+            # plt.savefig(f'charts/offloading_spatial_step-{step}_threshold-{threshold}.pdf')
+            # plt.close()

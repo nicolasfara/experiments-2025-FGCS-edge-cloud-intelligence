@@ -61,6 +61,7 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
     batteryModel.updateComponentsExecution(allocator.getComponentsAllocation)
     val percentageOffloadedComponents = allocator.getComponentsAllocation.values.count(_ != node.getId) / components.size.toDouble
     node.setConcentration(RuleControllerSpatialModularizationRuntime.PERCENTAGE_OFFLOADED_COMPONENTS, percentageOffloadedComponents.asInstanceOf[T])
+    node.setConcentration(RuleControllerSpatialModularizationRuntime.PERCENTAGE_LOCAL_COMPONENTS, (1.0 - percentageOffloadedComponents).asInstanceOf[T])
   }
 
   private def getAllocatedComponentsCount(node: Node[T], componentName: String): Int = {
@@ -86,4 +87,5 @@ class RuleControllerSpatialModularizationRuntime[T, P <: Position[P]](
 
 private object RuleControllerSpatialModularizationRuntime {
   private val PERCENTAGE_OFFLOADED_COMPONENTS = new SimpleMolecule("percentageOffloadedComponents")
+  private val PERCENTAGE_LOCAL_COMPONENTS = new SimpleMolecule("percentageLocalComponents")
 }
