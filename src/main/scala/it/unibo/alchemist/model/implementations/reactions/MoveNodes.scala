@@ -19,19 +19,17 @@ class MoveNodes [T, P <: Position[P]](
 
   private val random = new Random(seed)
 
-  private val movingNodes = 15
-  private val movementRange = -2 to 3
-  private val deltaX = List.fill(movingNodes)(random.between(movementRange.start, movementRange.end))
-  private val deltaY = List.fill(movingNodes)(random.between(movementRange.start, movementRange.end))
+  private val movingNodes = List(0, 1, 32)
+  private val movementRange = -4 to -2
+  private val deltaX = List.fill(movingNodes.size)(random.between(movementRange.start, movementRange.end))
+  private val deltaY = List.fill(movingNodes.size)(random.between(movementRange.start, movementRange.end))
 
   override protected def executeBeforeUpdateDistribution(): Unit = {
-    println("----------------------- [DEBUG] Moving nodes -----------------------")
     random
       .shuffle(applicationNodes)
-      .take(movingNodes)
+      .take(movingNodes.size)
       .zipWithIndex
       .foreach { case (node, index) =>
-        println("DIOCANEEEEE")
         val newPosition = environment.getPosition(node).plus(Array(deltaX(index), deltaY(index)))
         environment.moveNodeToPosition(node, newPosition)
       }

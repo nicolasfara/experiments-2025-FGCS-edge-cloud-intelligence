@@ -137,6 +137,9 @@ class DQNTrainer:
             self.executedToHetero = True
             self.optimizer = torch.optim.Adam(self.model.parameters(), 0.0001)
 
+    def load_model_from_snapshot(self, path):
+        self.model.load_state_dict(torch.load(path))
+
     def train_step_dqn(self, batch_size, gamma=0.99, seed=42):
         if len(self.replay_buffer) < batch_size:
             return 0

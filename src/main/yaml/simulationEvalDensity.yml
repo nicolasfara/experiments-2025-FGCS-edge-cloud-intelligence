@@ -1,0 +1,209 @@
+incarnation: surrogatescafi
+
+variables:
+  seed: &seed
+    min: 0
+    max: 0
+    step: 1
+    default: 0
+  globalRound: &globalRound
+    type: ArbitraryVariable
+    parameters: [ 1, [ 2, 3 ] ]
+#  randomAugmentedSeed: &randomAugmentedSeed
+#    type: ArbitraryVariable
+#    parameters: [ 1, [ 2 ] ]
+  #------------------------------------------------------------------
+  densityEstimationProgram: &densityEstimationProgram
+    language: scala
+    formula: "\"it.unibo.alchemist.DensityEstimation\""
+  greaterDistance: &greaterDistance
+    language: scala
+    formula: "\"it.unibo.alchemist.GreaterDistance\""
+  programDag: &programDag
+    language: scala
+    formula: Map(densityEstimationProgram -> Set(greaterDistance))
+  componentsInstructions: &componentsInstructions
+    language: scala
+    formula: |
+      Map(densityEstimationProgram -> 10_000_000L, greaterDistance -> 16_500_000L)
+
+seeds:
+  scenario: *seed
+  simulation: *seed
+
+#launcher:
+#  type: GraphDqnLauncher
+#  parameters: {
+#    batch: ["seed"],
+#    globalRounds: 120,
+#    seedName: "seed",
+#    globalBufferSize: 2000,
+#    actionSpaceSize: 36,
+#    boundedVariables: [],
+#    targetSwapPeriod: 3000
+#  }
+
+network-model:
+  type: ConnectWithinDistancesEdge
+  parameters: [2]
+
+_constants:
+  retentionTime: &retentionTime 25.0
+
+_programs:
+  - program: &surrogateDensityEstimation
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunSurrogateScafiProgram
+            parameters: [ *densityEstimationProgram, *retentionTime, *programDag ]
+      - program: sendSurrogate
+  - program: &surrogateGreater
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunSurrogateScafiProgram
+            parameters: [ *greaterDistance, *retentionTime, *programDag ]
+      - program: sendSurrogate
+  - program: &gradient
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *densityEstimationProgram, *retentionTime, *programDag ]
+      - program: send
+  - program: &greater
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: RunApplicationScafiProgram
+            parameters: [ *greaterDistance, *retentionTime, *programDag ]
+      - program: send
+  - program: &batteryDevice
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: BatteryEquippedDevice
+            parameters: [ 4200.0, 1, *componentsInstructions, 100.0, 3.7, 0.5 ] # Battery capacity, EPI (nJ), components instructions
+  - program: &payPerUseEdgeServer
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 100.0 ] # Cost per component per hour in $/h
+  - program: &payPerUseCloud
+      - time-distribution: 1
+        type: Event
+        actions:
+          - type: PayPerUseDevice
+            parameters: [ 1000.0 ] # Cost per component per hour in $/h
+
+environment:
+  type: Continuous2DEnvironment
+  parameters: []
+  global-programs:
+    - time-distribution:
+        type: DiracComb
+        parameters: [ 2.2, 0.2 ]
+      type: EvalDensity
+      parameters: [*seed]
+    - time-distribution:
+        type: Trigger
+        parameters: [100]
+      type: MoveNodes
+      parameters: [*seed]
+
+_application-programs: &application-programs
+  - *gradient
+  - *greater
+  - *batteryDevice
+
+_application-allocation: &application-allocation
+  type: AllocatorProperty
+  parameters: [ *programDag ]
+
+deployments:
+  - type: Grid
+    parameters: [ 0, 0, 2, 2, 0.5, 0.5, 0.5, 0.5 ]
+    programs: *application-programs
+    properties: *application-allocation
+  - type: Grid
+    parameters: [ 3, 3, 5, 5, 0.5, 0.5, 0.5, 0.5 ]
+    programs: *application-programs
+    properties: *application-allocation
+  - type: Grid
+    parameters: [ 0, 0, 6, 6, 1.5, 1.5, 2, 2 ]
+    programs: *application-programs
+    properties: *application-allocation
+  - type: SpecificPositions # Edge Servers
+    parameters: [
+      [ 8.2152226, 6.3816613 ],
+      [ 8.2366507, 6.3838339 ],
+      [ 8.2146077, 6.3485146 ],
+      #      [ 8.2055562, 6.3778687 ],
+      #      [ 8.1924837, 6.3458967 ],
+    ]
+    programs:
+      - *surrogateDensityEstimation
+      - *surrogateGreater
+      - *payPerUseEdgeServer
+    contents:
+      - molecule: infrastructuralDevice
+        concentration: true
+  - type: SpecificPositions # Clouds
+    parameters: [
+      [ 9.2152226, 7.3816613 ],
+      [ 9.2366507, 7.3838339 ],
+    ]
+    programs:
+      - *surrogateDensityEstimation
+      - *surrogateGreater
+      - *payPerUseCloud
+    contents:
+      - molecule: cloudDevice
+        concentration: true
+
+terminate:
+  type: AfterTime
+  parameters: 200
+
+export:
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "experiment-density-eval"
+      interval: 1.0
+      exportPath: "data-density-eval"
+    data:
+      - time
+      - molecule: reward
+        aggregators: [min, max, mean, variance]
+        value-filter: onlyfinite
+        precision: 3
+      - molecule: batteryCapacity
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: localComponentsPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      - molecule: batteryPercentage
+        aggregators: [ min, max, mean, variance ]
+        value-filter: onlyfinite
+      -  molecule: totalCost
+         aggregators: [ min, max, mean, variance ]
+         value-filter: onlyfinite
+  - type: CSVExporter
+    parameters:
+      fileNameRoot: "experiment-density-eval-nodes"
+      interval: 1.0
+      exportPath: "data-density-eval"
+    data:
+      - time
+      - type: NodesPositions
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "batteryCapacity", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "localComponentsPercentage", 3 ]
+      - type: MoleculePerNodeExtractor
+        parameters: [ "ComponentsExecutionCount", 3 ]
