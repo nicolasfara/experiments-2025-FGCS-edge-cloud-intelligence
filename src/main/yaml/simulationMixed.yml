@@ -2,8 +2,8 @@ incarnation: surrogatescafi
 
 variables:
   seed: &seed
-    min: 2
-    max: 2
+    min: 3
+    max: 3
     step: 1
     default: 1
   alpha: &alpha
