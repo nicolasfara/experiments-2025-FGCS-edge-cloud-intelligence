@@ -510,9 +510,12 @@ if __name__ == '__main__':
             colormapping = [viridis(c.item()) for c in data[all_nodes_local_components].to_array()]
             colors = {c.item(): viridis(c.item()) for c in data[all_nodes_local_components].to_array() }
             legend_elements = [mpatches.Patch(color=c, label=f"{int(p * 100)}%") for p, c in sorted(colors.items())]
-            plt.scatter(data[all_nodes_x].to_array(), data[all_nodes_y].to_array(), color=colormapping)
+            ax = plt.scatter(data[all_nodes_x].to_array(), data[all_nodes_y].to_array(), color=colormapping)
             plt.legend(handles=legend_elements, title="Offloaded Components (\%)", loc = 'upper right')
-            plt.title(f"{int(threshold)} neighbors - {int(step)} steps")
+            plt.title(f"s={int(threshold)} - th={int(step)}")
+            plt.xlabel("Distance (dam)")
+            plt.ylabel("Distance (dam)")
+            plt.grid(False)
 # =======
 #             plot = sns.scatterplot(x=data[all_nodes_x].to_array(), y=data[all_nodes_y].to_array(), hue=data[all_nodes_local_components].to_array(), palette='viridis')
 #             plot.set(
