@@ -14,18 +14,26 @@ case object AlwaysEdgeServer extends Experiment
 case object AlwaysCloud extends Experiment
 case object Random extends Experiment
 
+object ExperimentsSpace {
+
+  private val experiments = List(AlwaysLocal, AlwaysEdgeServer, AlwaysCloud, Random)
+
+  def fromIndex(index: Int): Experiment = experiments(index)
+
+}
 
 class BaselineController [T, P <: Position[P]](
   environment: Environment[T, P],
   distribution: TimeDistribution[T],
-  experiment: Experiment,
+  experimentName: Int,
   seed: Int
 ) extends AbstractGlobalReaction(environment, distribution) {
-
 
   private val random = new scala.util.Random(seed)
 
   private implicit def toMolecule(name: String): SimpleMolecule = new SimpleMolecule(name)
+
+  private val experiment = ExperimentsSpace.fromIndex(experimentName)
 
   protected lazy val cloudNodes: Seq[Node[T]] = nodes
     .filter(n => n.contains(Molecules.cloud))
@@ -40,16 +48,20 @@ class BaselineController [T, P <: Position[P]](
     .filterNot(n => n.contains(Molecules.cloud))
     .sortBy(node => node.getId)
 
-  private val components = getComponents
+  private lazy val components = getComponents
+
+  private var executed = false
 
   override protected def executeBeforeUpdateDistribution(): Unit = {
 
-    println(experiment)
-
-    applicationNodes.foreach { node =>
-      val newComponentsAllocation = components.map(_.id -> offloadTo(node)).toMap
-      updateAllocation(node, newComponentsAllocation)
+    if(executed){
+      applicationNodes.foreach { node =>
+        val newComponentsAllocation = components.map(_.id -> offloadTo(node)).toMap
+        updateAllocation(node, newComponentsAllocation)
+      }
     }
+    executed = true
+
   }
 
   private def offloadTo(node: Node[T]): Int = experiment match {
@@ -80,9 +92,14 @@ class BaselineController [T, P <: Position[P]](
   }
 
   protected def getComponents: Seq[Component] = {
-    getAllocator(applicationNodes.head).getComponentsAllocation.keys
-      .map(id => Component(id))
-      .toSeq
+    if(applicationNodes.nonEmpty){
+      getAllocator(applicationNodes.head).getComponentsAllocation.keys
+        .map(id => Component(id))
+        .toSeq
+    } else {
+      Seq()
+    }
+
   }
 
   protected def getAllocator(node: Node[T]): AllocatorProperty[T, P] = {
@@ -91,5 +108,4 @@ class BaselineController [T, P <: Position[P]](
       .map(_.asInstanceOf[AllocatorProperty[T, P]])
       .head
   }
-
 }
