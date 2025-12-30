@@ -91,6 +91,13 @@ def extract_mean_std(data):
     std  = [s for _, s in data]
     return mean, std
 
+def load_baseline_data(experiment):
+    file = f'data-baselines/experiment-{experiment}_seed-1.0_randomAugmentedSeed-1.csv'
+    columns = extract_variable_names(file)
+    data = open_csv(file)
+    df = pd.DataFrame(data, columns=columns)
+    return df
+
 def plot_aggregated(aggregated, metrics, rounds, alpha, beta, gamma, output_path):
 
     path = f'{output_path}/aggregated/alpha-{alpha}_beta-{beta}_gamma-{gamma}'
@@ -106,6 +113,7 @@ def plot_aggregated(aggregated, metrics, rounds, alpha, beta, gamma, output_path
         local = '#c2df23'
         edge = '#1e9b8a'
         cloud = '#fde725'
+        random = '#561d25'
 
         plt.plot(time, mean, color=color)
         plt.fill_between(time, lower, upper, color=color, alpha=0.2)
@@ -118,14 +126,23 @@ def plot_aggregated(aggregated, metrics, rounds, alpha, beta, gamma, output_path
             gamma = 1.0
 
         lw = 2
-        
+
+        df_local = load_baseline_data('local')[2:]
+        df_es = load_baseline_data('edgeserver')[2:]
+        df_cloud = load_baseline_data('cloud')[2:]
+        df_random = load_baseline_data('random')[2:]
+
         if 'Battery' in label:
-            plt.axhline(y=100, color=edge, linestyle='--', linewidth=lw, label='Edge/Cloud')
-            plt.axhline(y=91, color=local, linestyle='--', linewidth=lw, label='Local')
+            plt.plot(time, df_local['batteryPercentage[mean]'], color=local, linewidth=lw, label='Local')
+            plt.plot(time, df_es['batteryPercentage[mean]'], color=edge, linewidth=lw, label='Edge Server')
+            plt.plot(time, df_cloud['batteryPercentage[mean]'], color=cloud, linewidth=lw, label='Cloud Server')
+            plt.plot(time, df_random['batteryPercentage[mean]'], color=random, linewidth=lw, label='Random Allocation')
+
         elif 'Cost' in label:
-            plt.axhline(y=0, color=local, linestyle='--', linewidth=lw, label='Local')
-            plt.axhline(y=160, color=cloud, linestyle='--', linewidth=lw, label='Cloud')
-            plt.axhline(y=25, color=edge, linestyle='--', linewidth=lw, label='Edge')
+            plt.plot(time, df_local['totalCost[mean]'], color=local, linewidth=lw, label='Local')
+            plt.plot(time, df_es['totalCost[mean]'], color=edge, linewidth=lw, label='Edge Server')
+            plt.plot(time, df_cloud['totalCost[mean]'], color=cloud, linewidth=lw, label='Cloud Server')
+            plt.plot(time, df_random['totalCost[mean]'], color=random, linewidth=lw, label='Random Allocation')
 
         plt.title(f'{label} - $\\alpha$ = {alpha}, $\\beta$ = {beta}, $\gamma$ = {gamma}')
         plt.xlabel('Global Round')
@@ -171,7 +188,7 @@ if __name__ == '__main__':
 
     # Experiments parameters
     data_path   = 'data-learning-mixed'
-    charts_path = 'charts-fgcs'
+    charts_path = 'charts-fgcs-review'
     experiment  = 'mixed'
     min_seed    = 0
     max_seed    = 3
