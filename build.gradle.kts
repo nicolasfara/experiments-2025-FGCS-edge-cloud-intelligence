@@ -148,7 +148,9 @@ File(rootProject.rootDir.path + "/src/main/yaml").listFiles()
                 this.additionalConfiguration()
             }
             if (System.getenv("CONTAINER") != "true") {
-                dependsOn(installCustomDependency)
+                if (!name.lowercase().contains("baseline")) {
+                    dependsOn(installCustomDependency)
+                }
             }
         }
         val capitalizedName = it.nameWithoutExtension.replaceFirstChar { c -> c.titlecase() }
