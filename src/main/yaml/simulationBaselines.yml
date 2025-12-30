@@ -10,9 +10,8 @@ variables:
   randomAugmentedSeed: &randomAugmentedSeed
     type: ArbitraryVariable
     parameters: [ 1, [ 2 ] ]
-  experiment: &experiment
-    language: scala
-    formula:  "\"it.unibo.alchemist.model.implementations.reactions.AlwaysLocal\""
+
+  experiment: &experiment 2
   #------------------------------------------------------------------
   gradientProgram: &gradientProgram
     language: scala
@@ -95,7 +94,7 @@ environment:
   global-programs:
     - time-distribution:
         type: DiracComb
-        parameters: [ 2.2, 0.2 ]
+        parameters: [ 0.2, 1.0 ]
       type: BaselineController
       parameters: [*experiment, *seed]
 
@@ -143,14 +142,14 @@ deployments:
 
 terminate:
   type: AfterTime
-  parameters: 50
+  parameters: 60
 
 export:
   - type: CSVExporter
     parameters:
-      fileNameRoot: "experiment-mixed"
+      fileNameRoot: "experiment-cloud"
       interval: 1.0
-      exportPath: "data-baseline-alwayslocal"
+      exportPath: "data-baselines"
     data:
       - time
       - molecule: reward
